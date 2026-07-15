@@ -23,7 +23,7 @@ __pycache__/
 .dist/пш
 .coverage
 htmlcov/
-kovermap/migrations/
+# kovermap/migrations/
 # Node (if any frontend tooling is added later)
 node_modules/
 
