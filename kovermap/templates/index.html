@@ -1,0 +1,143 @@
+<!doctype html>
+{% load static %}
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="{{ csrf_token }}" />
+    <link rel="stylesheet" href="{% static 'kovermap/styles.css' %}" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@200..900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'leaflet/leaflet.css' %}" />
+
+
+    <title>Kover Map</title>
+  </head>
+  <body>
+    <h1>Kover Map</h1>
+    <div class="top_bar">
+      <div class="topbar_card font_airports">
+        <h2>Всего Аэропортов</h2>
+        <p id="total-airports">0</p>
+      </div>
+      <div class="topbar_card font_airports">
+        <h2>Закрыто</h2>
+        <p id="closed-airports">0</p>
+      </div>
+      <div class="topbar_card font_airports">
+        <h2>Открыто</h2>
+        <p id="open-airports">0</p>
+      </div>
+      <div class="topbar_card font_airports">
+        <h2>Работа с ограничениями</h2>
+        <p id="restricted-airports">0</p>
+      </div>
+      
+      <!-- KO restrictions stats cards -->
+      <div class="topbar_card card-ko-total">
+        <h2>Всего КО</h2>
+        <p id="total-ko">0</p>
+      </div>
+      <div class="topbar_card card-ko-active">
+        <h2>Активно КО</h2>
+        <p id="active-ko">0</p>
+      </div>
+      <div class="topbar_card card-ko-upcoming">
+        <h2>Предстоящие КО</h2>
+        <p id="upcoming-ko">0</p>
+      </div>
+
+      <div class="topbar_card font_update">
+        <h2>Последнее обновление</h2>
+        <p id="last-update">—</p>
+      </div>
+    </div>
+    <div class="central_block">
+        <div class="left_panel">
+            <div class="panel_tabs">
+                <button class="panel-tab active" id="tab-airports">✈️ Аэропорты</button>
+                <button class="panel-tab" id="tab-ko">🛡️ Ограничения (КО)</button>
+                <button class="panel-tab" id="tab-rte">🗺️ Маршрут</button>
+            </div>
+            
+            <!-- Airports Content -->
+            <div class="tab_content active" id="content-airports">
+                <div class="search_panel">
+                    <input 
+                        type="text" 
+                        id="search-input" 
+                        placeholder="🔍 Поиск по названию или ICAO..." 
+                        class="search-input"
+                    >
+                    <div class="filter_controls">
+                        <label for="status-filter" class="filter-label">Фильтр:</label>
+                        <select id="status-filter" class="status-filter">
+                            <option value="">Все статусы</option>
+                            <option value="OPEN">Открыты</option>
+                            <option value="CLOSED">Закрыты</option>
+                            <option value="RESTRICTED">Ограничения</option>
+                        </select>
+                        <button id="refresh-btn" class="refresh-btn" title="Обновить статусы">🔄</button>
+                    </div>
+                </div>
+                <ul class="airports_list">
+                    <!-- Airports will be loaded by JavaScript -->
+                </ul>
+            </div>
+
+            <!-- KO restrictions Content -->
+            <div class="tab_content" id="content-ko">
+                <div class="search_panel">
+                    <input 
+                        type="text" 
+                        id="ko-search-input" 
+                        placeholder="🔍 Поиск по RVM / описанию..." 
+                        class="search-input"
+                    >
+                    <div class="filter_controls ko_filters">
+                        <select id="ko-category-filter" class="status-filter" style="width: 50%;">
+                            <option value="">Все типы КО</option>
+                            <option value="full_closure">Полное закрытие</option>
+                            <option value="partial_closure">Частичное закрытие</option>
+                            <option value="route">Маршруты</option>
+                        </select>
+                        <select id="ko-status-filter" class="status-filter" style="width: 50%;">
+                            <option value="">Все статусы</option>
+                            <option value="active">Активные</option>
+                            <option value="upcoming">Предстоящие</option>
+                        </select>
+                    </div>
+                    <div class="filter_controls">
+                        <select id="ko-fir-filter" class="status-filter" style="width: 100%;">
+                            <option value="">Все FIR (районы УВД)</option>
+                            <!-- FIRs will be loaded by JS -->
+                        </select>
+                    </div>
+                </div>
+                <ul class="ko_list">
+                    <!-- KO restrictions will be loaded by JavaScript -->
+                </ul>
+            </div>
+            <div class="tab_content" id="content-rte">
+                <div class="rte_panel">
+                    <input 
+                        type="text" 
+                        id="rte-input" 
+                        placeholder="🔍 Введите маршрут." 
+                        class="search-input"
+                    >
+                    <button id="rte-btn" class="rte-btn" title="Обновить статусы">➡️</button>
+                </div>
+                <div class="route-legs-list" style="overflow-x: hidden; overflow-y: auto;">
+                    <div class="empty-message" style="color: #94a3b8; font-size: 12px; text-align: center; padding: 10px;">Маршрут не задан</div>
+                </div>
+            </div>
+        </div>
+        <div class="map_module" id="map"></div>
+    </div>
+    <div id="route-warnings" style="display: none; margin-top: 8px; font-size: 12px; color: #ef4444; background: #fef2f2; padding: 8px; border-radius: 4px;"></div>
+    <script src="{% static 'leaflet/leaflet-global.js' %}"></script>
+    <script src="{% static 'kovermap/map.js' %}"></script>
+  </body>
+</html>

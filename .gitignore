@@ -1,0 +1,40 @@
+# Django
+*.log
+local_settings.py
+db.sqlite3
+*.sqlite3
+
+# Migrations cache
+**/migrations/*.pyc
+
+# Environment
+.env
+.env.*
+.venv/
+venv/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+.build/
+.dist/
+.coverage
+htmlcov/
+kovermap/migrations/
+# Node (if any frontend tooling is added later)
+node_modules/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Project-specific artifacts
+nd.db3
+staticfiles/
+
