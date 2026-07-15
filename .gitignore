@@ -20,7 +20,7 @@ __pycache__/
 *.egg-info/
 *.egg
 .build/
-.dist/
+.dist/пш
 .coverage
 htmlcov/
 kovermap/migrations/
