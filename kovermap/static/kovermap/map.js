@@ -573,7 +573,7 @@ function renderRouteCards(geojson) {
     // Фокусировка на конкретном сегменте при клике на карточку в списке
     card.addEventListener("click", () => {
       const coords = feature.geometry.coordinates;
-      const bounds = L.latLngBounds(coords.map(c => [c[1], c[0]]));
+      const bounds = new L.LatLngBounds(coords.map(c => [c[1], c[0]]));
       map.fitBounds(bounds, { maxZoom: 8, padding: [100, 100] });
       
       // Находим и открываем попап для этой линии
@@ -844,7 +844,7 @@ function focusOnRestriction(ko) {
   });
 
   if (allCoords.length > 0) {
-    const bounds = L.latLngBounds(allCoords);
+    const bounds = new L.LatLngBounds(allCoords);
     map.fitBounds(bounds, { maxZoom: 10, padding: [50, 50] });
 
     if (ko._layers && ko._layers.length > 0) {
