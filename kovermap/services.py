@@ -470,6 +470,7 @@ def parse_flight_plan(route_str: str, db_path):
             continue
         if '/' in token:
             token = token.split('/')[0]
+        token = token.capitalize()
         candidates = get_all_point_candidates(cursor, token)
         
         if candidates:
