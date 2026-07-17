@@ -6,14 +6,21 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from kovermap.models import Airport, UpdateLog
 from kovermap.services import AirportUpdateService, parse_flight_plan
 
+from django.core.cache import cache
+from django.views.decorators.http import require_GET
+
+
+
 
 # Create your views here.
 def detail(request):
     return render(request, "index.html")
 
 
+@require_GET
 def get_route_data(request):
     # Получаем маршрут из GET-параметра ?route=...
+
     route = request.GET.get('route', '').strip()
     if not route:
         return JsonResponse({'error': 'Маршрут не передан'}, status=400)
@@ -27,8 +34,18 @@ def get_route_data(request):
         return JsonResponse({'error': 'Слишком много элементов маршрута'}, status=400)
 
     db_path = 'nd.db3'  # Путь к вашей базе данных
+
+    # Cache heavy parsing results to reduce DoS impact
+    cache_key = f"route:{route}"
+
+    cached = cache.get(cache_key)
+    if cached:
+        return JsonResponse(cached)
+
     data = parse_flight_plan(route, db_path)
+    cache.set(cache_key, data, timeout=60)  # 1 minute
     return JsonResponse(data)
+
 
 
 def airports_api(request):

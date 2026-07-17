@@ -300,9 +300,11 @@ function showNotification(message, type = "info") {
 // Apply search and filter for airports
 function applyFilters() {
   filteredAirports = airportsData.filter((airport) => {
+    // topbar filter supports active button via currentStatusFilter
     if (currentStatusFilter && airport.status !== currentStatusFilter) {
       return false;
     }
+
 
     if (currentSearchTerm) {
       const matchName = airport.name.toUpperCase().includes(currentSearchTerm);
@@ -610,7 +612,7 @@ function renderAirports(airports) {
 				<div class="airport-popup">
 					<strong>${airport.name}</strong><br>
 					ICAO: ${airport.icao}<br>
-					Город: ${airport.city}<br>
+					FIR: ${airport.city}<br>
 					Статус: <span class="status-badge status-${airport.status.toLowerCase()}">
 						${statusNames[airport.status]}
 					</span>

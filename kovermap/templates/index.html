@@ -21,18 +21,21 @@
         <h2>Всего Аэропортов</h2>
         <p id="total-airports">0</p>
       </div>
-      <div class="topbar_card font_airports">
-        <h2>Закрыто</h2>
+      <button type="button" class="topbar_card font_airports topbar-filter" data-status="CLOSED">
+        <h2>Закрытые Аэропорты</h2>
         <p id="closed-airports">0</p>
-      </div>
-      <div class="topbar_card font_airports">
-        <h2>Открыто</h2>
+      </button>
+
+      <button type="button" class="topbar_card font_airports topbar-filter" data-status="OPEN">
+        <h2>Открытые Аэропорты</h2>
         <p id="open-airports">0</p>
-      </div>
-      <div class="topbar_card font_airports">
-        <h2>Работа с ограничениями</h2>
+      </button>
+
+      <button type="button" class="topbar_card font_airports topbar-filter" data-status="RESTRICTED">
+        <h2>Аэропорты с ограничениями</h2>
         <p id="restricted-airports">0</p>
-      </div>
+      </button>
+
       
       <!-- KO restrictions stats cards -->
       <div class="topbar_card card-ko-total">
@@ -81,9 +84,11 @@
                         <button id="refresh-btn" class="refresh-btn" title="Обновить статусы">🔄</button>
                     </div>
                 </div>
+                <div class="disclaimer" id="disclaimer">⚠️ Не используйте эти данные для подготовки к полёту.</div>
                 <ul class="airports_list">
                     <!-- Airports will be loaded by JavaScript -->
                 </ul>
+
             </div>
 
             <!-- KO restrictions Content -->
