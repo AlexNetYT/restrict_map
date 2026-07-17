@@ -104,7 +104,12 @@ def airports_api(request):
     )
 
     for row in data:
-        row["possible_ivp_restriction"] = row["icao"] in ivp_icaos
+        possible_ivp = row["icao"] in ivp_icaos
+        row["possible_ivp_restriction"] = possible_ivp
+        if possible_ivp:
+            # По требованию: если аэропорт попадает в зоны ИВП (circle),
+            # показываем его как "закрыт/ограничен" в ответе API.
+            row["status"] = "RESTRICTED"
 
     # Get last update timestamp
     last_update = UpdateLog.objects.filter(success=True).first()
