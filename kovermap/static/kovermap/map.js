@@ -355,7 +355,7 @@ function applyKoFilters() {
 }
 
 // RTE 
-function loadRoute(routeStr) {
+async function loadRoute(routeStr) {
   if (!routeStr) {
     showNotification("⚠️ Введите строку маршрута", "error");
     return;
