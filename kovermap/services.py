@@ -451,7 +451,7 @@ def get_airway_path(cursor, airway, start_ident, end_ident):
 def parse_flight_plan(route_str: str, db_path):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    route_str = route_str.capitalize()
+    route_str = route_str.upper()
     tokens = route_str.split()
     features = []
     unrecognized = []
@@ -470,7 +470,7 @@ def parse_flight_plan(route_str: str, db_path):
             continue
         if '/' in token:
             token = token.split('/')[0]
-        token = token.capitalize()
+        token = token.upper()
         candidates = get_all_point_candidates(cursor, token)
         
         if candidates:
