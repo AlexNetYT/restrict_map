@@ -448,10 +448,10 @@ def get_airway_path(cursor, airway, start_ident, end_ident):
                 
     return []
 
-def parse_flight_plan(route_str, db_path):
+def parse_flight_plan(route_str: str, db_path):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    
+    route_str = route_str.capitalize()
     tokens = route_str.split()
     features = []
     unrecognized = []
