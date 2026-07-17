@@ -369,6 +369,13 @@ async function loadRoute(routeStr) {
   try {
     const response = await fetch(`/api/route/?route=${encodeURIComponent(routeStr)}`);
     const data = await response.json();
+    const ivpRouteHits = Array.isArray(data.ivp_route_hits) ? data.ivp_route_hits : [];
+    const ivpHitBySegmentKey = new Map();
+    // Карты сегментов соответствуют порядку features geojson
+    // ключ: "from->to"
+    ivpRouteHits.forEach(h => {
+      if (h && h.from && h.to) ivpHitBySegmentKey.set(`${h.from}->${h.to}`, h);
+    });
 
     if (data.error) {
       showNotification(`✗ Ошибка: ${data.error}`, "error");
@@ -378,17 +385,34 @@ async function loadRoute(routeStr) {
     // 1. Отрисовка линий маршрута
     routeLayer = new L.GeoJSON(data.geojson, {
       style: function (feature) {
-        if (feature.properties.name === "DCT") {
-          return { color: "#ef4444", weight: 4, dashArray: "6, 8", opacity: 0.8 };
-        } else {
-          return { color: "#3b82f6", weight: 5, opacity: 0.9 };
+        const props = feature.properties || {};
+        const segKey = `${props.from}->${props.to}`;
+        const hit = ivpHitBySegmentKey.get(segKey)?.hit === true;
+
+        if (hit) {
+          // Усиленный стиль для IVP hits
+          return { color: "#a855f7", weight: 8, opacity: 0.95 };
         }
+
+        if (props.name === "DCT") {
+          return { color: "#ef4444", weight: 4, dashArray: "6, 8", opacity: 0.8 };
+        }
+        return { color: "#3b82f6", weight: 5, opacity: 0.9 };
       },
       onEachFeature: function (feature, layer) {
+        const props = feature.properties || {};
+        const segKey = `${props.from}->${props.to}`;
+        const hit = ivpHitBySegmentKey.get(segKey)?.hit === true;
+
+        const ivpText = hit
+          ? `<br><span style="color:#a855f7;font-weight:700;">⚠ Возможны ограничения из-за ограничений ИВП</span>`
+          : '';
+
         layer.bindPopup(`
           <div class="airport-popup">
-            <strong>Трасса:</strong> ${feature.properties.name}<br>
-            <strong>Сегмент:</strong> ${feature.properties.from} ➔ ${feature.properties.to}
+            <strong>Трасса:</strong> ${props.name}<br>
+            <strong>Сегмент:</strong> ${props.from} ➔ ${props.to}
+            ${ivpText}
           </div>
         `);
       }
@@ -497,6 +521,13 @@ async function loadRoute(routeStr) {
   }
 }
 function renderRouteCards(geojson) {
+  // Берем IVP hits из глобального scope, поднятого в loadRoute()
+  // Если не найдено — просто не отображаем бейджи.
+  const ivpHits = window.__ivpRouteHits || [];
+  const ivpHitBySegmentKey = new Map();
+  ivpHits.forEach(h => {
+    if (h && h.from && h.to) ivpHitBySegmentKey.set(`${h.from}->${h.to}`, h);
+  });
   // Найдите или добавьте в ваш HTML элемент <div class="route-legs-list"></div> в боковую панель
   const routeListContainer = document.querySelector(".route-legs-list");
   if (!routeListContainer) return;
@@ -510,15 +541,27 @@ function renderRouteCards(geojson) {
   geojson.features.forEach((feature, index) => {
     const props = feature.properties;
     const isDct = props.name === "DCT";
-    const cardClass = isDct ? "route-leg-card leg-dct" : "route-leg-card";
+    const segKey = `${props.from}->${props.to}`;
+    const hit = ivpHitBySegmentKey.get(segKey)?.hit === true;
+
+    const cardClass = hit
+      ? (isDct ? "route-leg-card leg-dct ivp-hit" : "route-leg-card ivp-hit")
+      : (isDct ? "route-leg-card leg-dct" : "route-leg-card");
+
     const badgeClass = isDct ? "leg-badge badge-dct" : "leg-badge badge-airway";
+    const ivpBadgeHtml = hit
+      ? `<span class="ivp-badge" title="Возможны ограничения из-за ограничений ИВП">ИВП</span>`
+      : '';
 
     const card = document.createElement("div");
     card.className = cardClass;
     card.innerHTML = `
       <div class="leg-header">
         <span class="leg-title">Сегмент ${index + 1}</span>
-        <span class="${badgeClass}">${props.name}</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="${badgeClass}">${props.name}</span>
+          ${ivpBadgeHtml}
+        </div>
       </div>
       <div class="leg-points">
         <strong>${props.from}</strong> 

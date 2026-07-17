@@ -5,6 +5,11 @@ from django.db.models import Count, Q
 from django.contrib.auth.decorators import login_required, user_passes_test
 from kovermap.models import Airport, UpdateLog
 from kovermap.services import AirportUpdateService, parse_flight_plan
+from kovermap.services import (
+    KORestrictionService,
+    get_ivp_airports_by_restrictions,
+    get_ivp_circle_hits_for_route_features,
+)
 
 from django.core.cache import cache
 from django.views.decorators.http import require_GET
@@ -42,7 +47,20 @@ def get_route_data(request):
     if cached:
         return JsonResponse(cached)
 
+    # Restriction cache (KO XML/API) to avoid doing it for each route request
+    restrictions_cache_key = "ko:restrictions:60s"
+    restrictions = cache.get(restrictions_cache_key)
+    if restrictions is None:
+        restrictions = KORestrictionService.get_restrictions()
+        cache.set(restrictions_cache_key, restrictions, timeout=60)
+
     data = parse_flight_plan(route, db_path)
+
+    # IVP circle-only hits for each route segment
+    features = (data.get("geojson") or {}).get("features") or []
+    ivp_route_hits = get_ivp_circle_hits_for_route_features(features, restrictions)
+    data["ivp_route_hits"] = ivp_route_hits
+
     cache.set(cache_key, data, timeout=60)  # 1 minute
     return JsonResponse(data)
 
@@ -60,6 +78,19 @@ def airports_api(request):
         restricted=Count('id', filter=Q(status='RESTRICTED')),
     )
 
+    # Restriction cache (KO XML/API) to avoid doing it for each airports list request
+    restrictions_cache_key = "ko:restrictions:60s"
+    restrictions = cache.get(restrictions_cache_key)
+    if restrictions is None:
+        restrictions = KORestrictionService.get_restrictions()
+        cache.set(restrictions_cache_key, restrictions, timeout=60)
+
+    ivp_icaos_cache_key = "ko:ivp_airports:60s"
+    ivp_icaos = cache.get(ivp_icaos_cache_key)
+    if ivp_icaos is None:
+        ivp_icaos = get_ivp_airports_by_restrictions(restrictions)
+        cache.set(ivp_icaos_cache_key, ivp_icaos, timeout=60)
+
     # Data (single query)
     data = list(
         airports_qs.values(
@@ -71,6 +102,9 @@ def airports_api(request):
             'longitude',
         )
     )
+
+    for row in data:
+        row["possible_ivp_restriction"] = row["icao"] in ivp_icaos
 
     # Get last update timestamp
     last_update = UpdateLog.objects.filter(success=True).first()
@@ -104,8 +138,6 @@ def update_airports(request):
     })
 
 
-
-from kovermap.services import KORestrictionService
 
 def ko_api(request):
     """API endpoint that returns active and upcoming KO restrictions"""

@@ -600,3 +600,154 @@ def update_airports_DB():
                 )
             except django.db.utils.IntegrityError:
                 print(ap)
+
+
+# =========================
+# IVP circle restriction logic (production-safe; circle only)
+# =========================
+
+def _haversine_km_latlon(lat1, lon1, lat2, lon2):
+    """Haversine distance between points (lat/lon) in kilometers."""
+    r_lat1, r_lon1 = math.radians(lat1), math.radians(lon1)
+    r_lat2, r_lon2 = math.radians(lat2), math.radians(lon2)
+
+    dlon = r_lon2 - r_lon1
+    dlat = r_lat2 - r_lat1
+
+    a = math.sin(dlat / 2) ** 2 + math.cos(r_lat1) * math.cos(r_lat2) * math.sin(dlon / 2) ** 2
+    c = 2 * math.asin(math.sqrt(a))
+    return c * 6371.0
+
+
+def _ivp_circle_zones_from_restrictions(restrictions):
+    """
+    Returns a list of:
+    {"ko_id": str, "center": (lat, lon), "radius_km": float}
+    for zones of type == "circle".
+    """
+    zones = []
+    for r in (restrictions or []):
+        ko_id = str(r.get("id", "") or "")
+        for z in r.get("zones", []) or []:
+            if z.get("type") == "circle":
+                zones.append(
+                    {
+                        "ko_id": ko_id,
+                        "center": z.get("center"),
+                        "radius_km": z.get("radius_km", 0) or 0,
+                    }
+                )
+    return zones
+
+
+def get_ivp_airports_by_restrictions(restrictions):
+    """
+    Compute which Airport.icao are inside ANY IVP circle zone.
+    Returns: set of ICAO.
+    """
+    circles = _ivp_circle_zones_from_restrictions(restrictions)
+    possible = set()
+    if not circles:
+        return possible
+
+    for c in circles:
+        center = c.get("center")
+        if not center or len(center) != 2:
+            continue
+        center_lat, center_lon = float(center[0]), float(center[1])
+
+        radius_km = float(c.get("radius_km") or 0)
+        if radius_km <= 0:
+            continue
+
+        # Bounding box filter
+        lat_delta = radius_km / 111.0
+        cos_lat = math.cos(math.radians(center_lat))
+        lon_delta = radius_km / (111.0 * cos_lat) if cos_lat != 0 else radius_km / 111.0
+
+        candidates = Airport.objects.filter(
+            latitude__range=(center_lat - lat_delta, center_lat + lat_delta),
+            longitude__range=(center_lon - lon_delta, center_lon + lon_delta),
+        ).only("icao", "latitude", "longitude")
+
+        for airport in candidates:
+            dist = _haversine_km_latlon(center_lat, center_lon, airport.latitude, airport.longitude)
+            if dist <= radius_km:
+                possible.add(airport.icao)
+
+    return possible
+
+
+def get_ivp_circle_hits_for_route_features(features, restrictions):
+    """
+    features: list of geojson Feature dicts with geometry.type == "LineString"
+    restrictions: KO restrictions list
+    Returns:
+      [
+        {
+          "from": "<ICAO>",
+          "to": "<ICAO>",
+          "hit": true/false,
+          "ivp_ko_ids": ["<ko_id>", ...]  # only when hit==true
+        },
+        ...
+      ]
+    Hit rule (circle-only):
+      - consider a segment hit if at least one point of its LineString is within circle radius.
+    """
+    circles = _ivp_circle_zones_from_restrictions(restrictions)
+    if not features:
+        return []
+
+    results = []
+    for feat in features:
+        props = feat.get("properties", {}) or {}
+        from_icao = props.get("from")
+        to_icao = props.get("to")
+
+        geometry = feat.get("geometry", {}) or {}
+        coords = geometry.get("coordinates") or []
+        # coords are [lon, lat]
+        hit_ko_ids = set()
+
+        if coords and circles:
+            # small perf: for each circle do bounding box around its center
+            for c in circles:
+                center = c.get("center")
+                if not center or len(center) != 2:
+                    continue
+                center_lat, center_lon = float(center[0]), float(center[1])
+                radius_km = float(c.get("radius_km") or 0)
+                if radius_km <= 0:
+                    continue
+
+                lat_delta = radius_km / 111.0
+                cos_lat = math.cos(math.radians(center_lat))
+                lon_delta = radius_km / (111.0 * cos_lat) if cos_lat != 0 else radius_km / 111.0
+
+                # any point within circle?
+                for point in coords:
+                    if not point or len(point) < 2:
+                        continue
+                    lon, lat = float(point[0]), float(point[1])
+
+                    if not (center_lat - lat_delta <= lat <= center_lat + lat_delta):
+                        continue
+                    if not (center_lon - lon_delta <= lon <= center_lon + lon_delta):
+                        continue
+
+                    dist = _haversine_km_latlon(center_lat, center_lon, lat, lon)
+                    if dist <= radius_km:
+                        hit_ko_ids.add(str(c.get("ko_id", "") or ""))
+                        break
+
+        results.append(
+            {
+                "from": from_icao,
+                "to": to_icao,
+                "hit": bool(hit_ko_ids),
+                "ivp_ko_ids": sorted([x for x in hit_ko_ids if x]),
+            }
+        )
+
+    return results
