@@ -589,8 +589,8 @@ function renderRouteCards(geojson) {
 }
 
 // Create a custom blinking dot marker for airports
-function createBlinkingMarker(lat, lon, status) {
-  const color = statusColors[status] || "#888888";
+function createBlinkingMarker(lat, lon, status, possibleIvP = false) {
+  const color = possibleIvP ? "#f97316" : (statusColors[status] || "#888888");
 
   const svgMarkup = `
     <svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'>
@@ -642,11 +642,19 @@ function renderAirports(airports) {
   }
 
   airports.forEach((airport) => {
+    const possibleIvP = airport.possible_ivp_restriction === true;
+
     const icon = createBlinkingMarker(
       airport.latitude,
       airport.longitude,
       airport.status,
+      possibleIvP,
     );
+
+    const ivpLine = possibleIvP
+      ? `<br><span style="color:#f97316;font-weight:700;">Аэродром находится в пределах зон ИВП, возможны ограничения</span>`
+      : '';
+
     const marker = new L.Marker([airport.latitude, airport.longitude], {
       icon: icon,
     })
@@ -659,6 +667,7 @@ function renderAirports(airports) {
 					Статус: <span class="status-badge status-${airport.status.toLowerCase()}">
 						${statusNames[airport.status]}
 					</span>
+					${ivpLine}
 				</div>
 			`);
 
