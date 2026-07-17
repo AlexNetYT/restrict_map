@@ -355,7 +355,7 @@ function applyKoFilters() {
 }
 
 // RTE 
-async function loadRoute(routeStr) {
+function loadRoute(routeStr) {
   if (!routeStr) {
     showNotification("⚠️ Введите строку маршрута", "error");
     return;
@@ -387,7 +387,13 @@ async function loadRoute(routeStr) {
       style: function (feature) {
         const props = feature.properties || {};
         const segKey = `${props.from}->${props.to}`;
-        const hit = ivpHitBySegmentKey.get(segKey)?.hit === true;
+        const hitByKey = ivpHitBySegmentKey.get(segKey)?.hit === true;
+
+        // Fallback для DCT: если не нашлось по ключу — попробуем по индексу сегмента.
+        const featureIndex = (data.geojson?.features || []).indexOf(feature);
+        const hitByIndex = ivpRouteHits[featureIndex]?.hit === true;
+
+        const hit = hitByKey || hitByIndex;
 
         if (hit) {
           // Усиленный стиль для IVP hits
@@ -402,7 +408,12 @@ async function loadRoute(routeStr) {
       onEachFeature: function (feature, layer) {
         const props = feature.properties || {};
         const segKey = `${props.from}->${props.to}`;
-        const hit = ivpHitBySegmentKey.get(segKey)?.hit === true;
+        const hitByKey = ivpHitBySegmentKey.get(segKey)?.hit === true;
+
+        const featureIndex = (data.geojson?.features || []).indexOf(feature);
+        const hitByIndex = ivpRouteHits[featureIndex]?.hit === true;
+
+        const hit = hitByKey || hitByIndex;
 
         const ivpText = hit
           ? `<br><span style="color:#a855f7;font-weight:700;">⚠ Возможны ограничения из-за ограничений ИВП</span>`
@@ -542,7 +553,11 @@ function renderRouteCards(geojson) {
     const props = feature.properties;
     const isDct = props.name === "DCT";
     const segKey = `${props.from}->${props.to}`;
-    const hit = ivpHitBySegmentKey.get(segKey)?.hit === true;
+
+    const hitByKey = ivpHitBySegmentKey.get(segKey)?.hit === true;
+    const hitByIndex = ivpHits[index]?.hit === true;
+
+    const hit = hitByKey || hitByIndex;
 
     const cardClass = hit
       ? (isDct ? "route-leg-card leg-dct ivp-hit" : "route-leg-card ivp-hit")
@@ -862,12 +877,111 @@ function focusOnRestriction(ko) {
   }
 }
 
-// Load data on page load
+function toRad(deg) {
+  return deg * (Math.PI / 180);
+}
+
+function toDeg(rad) {
+  return rad * (180 / Math.PI);
+}
+
+// Bearing in degrees from true north, 0..360
+function computeTrueBearingDeg(lat1, lon1, lat2, lon2) {
+  const φ1 = toRad(lat1);
+  const φ2 = toRad(lat2);
+  const Δλ = toRad(lon2 - lon1);
+
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+
+  let θ = Math.atan2(y, x);
+  let brng = (toDeg(θ) + 360) % 360;
+  return brng;
+}
+
+function computeHaversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371.0;
+  const φ1 = toRad(lat1);
+  const φ2 = toRad(lat2);
+  const Δφ = toRad(lat2 - lat1);
+  const Δλ = toRad(lon2 - lon1);
+
+  const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+  const c = 2 * Math.asin(Math.sqrt(a));
+  return R * c;
+}
+
+function ensureBearingDistanceOverlay() {
+  let el = document.getElementById("bearing-distance-overlay");
+  if (el) return;
+
+  el = document.createElement("div");
+  el.id = "bearing-distance-overlay";
+  el.style.position = "absolute";
+  el.style.bottom = "14px";
+  el.style.left = "14px";
+  el.style.zIndex = "1000";
+  el.style.background = "rgba(15, 23, 42, 0.85)";
+  el.style.color = "#e2e8f0";
+  el.style.padding = "10px 12px";
+  el.style.borderRadius = "10px";
+  el.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, Arial";
+  el.style.fontSize = "13px";
+  el.style.lineHeight = "1.25";
+  el.style.maxWidth = "320px";
+  el.innerHTML = `
+    <div style="font-weight:700;margin-bottom:6px;">Курс / Дистанция</div>
+    <div>Клик A: —</div>
+    <div>Клик B: —</div>
+    <div style="margin-top:6px;">Курс (истинный север): —</div>
+    <div>Дистанция: —</div>
+  `;
+
+  document.body.appendChild(el);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   loadAirports();
   loadRestrictions();
   setupTabs();
   setupEventListeners();
+
+  ensureBearingDistanceOverlay();
+
+  // 2 клика: A затем B
+  let clickA = null; // {lat,lon}
+  let clickB = null;
+
+  map.on("click", (e) => {
+    const lat = e.latlng.lat;
+    const lon = e.latlng.lng;
+
+    if (!clickA) {
+      clickA = { lat, lon };
+      clickB = null;
+    } else {
+      clickB = { lat, lon };
+    }
+
+    const overlay = document.getElementById("bearing-distance-overlay");
+    if (!overlay) return;
+
+    const fmt = (v) => (Math.round(v * 1000) / 1000).toFixed(3);
+    overlay.innerHTML = `
+      <div style="font-weight:700;margin-bottom:6px;">Курс / Дистанция</div>
+      <div>Клик A: ${clickA ? `(${fmt(clickA.lat)}, ${fmt(clickA.lon)})` : '—'}</div>
+      <div>Клик B: ${clickB ? `(${fmt(clickB.lat)}, ${fmt(clickB.lon)})` : '—'}</div>
+      <div style="margin-top:6px;">Курс (истинный север): ${
+        (clickA && clickB) ? `${Math.round(computeTrueBearingDeg(clickA.lat, clickA.lon, clickB.lat, clickB.lon))}°` : '—'
+      }</div>
+      <div>Дистанция: ${
+        (clickA && clickB)
+          ? `${computeHaversineKm(clickA.lat, clickA.lon, clickB.lat, clickB.lon).toFixed(1)} км`
+          : '—'
+      }</div>
+      <div style="margin-top:6px;opacity:0.85;">(Сделайте ещё 2 клика для обновления)</div>
+    `;
+  });
 
   // Set 5-minute auto refresh for both datasets
   setInterval(async () => {
