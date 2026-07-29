@@ -911,33 +911,143 @@ function computeHaversineKm(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+const bearingState = {
+  clickA: null,
+  clickB: null,
+  lineLayer: null,
+  arrowLayer: null,
+  markerALayer: null,
+  markerBLayer: null,
+};
+
 function ensureBearingDistanceOverlay() {
   let el = document.getElementById("bearing-distance-overlay");
   if (el) return;
 
-  el = document.createElement("div");
-  el.id = "bearing-distance-overlay";
-  el.style.position = "absolute";
-  el.style.bottom = "14px";
-  el.style.left = "14px";
-  el.style.zIndex = "1000";
-  el.style.background = "rgba(15, 23, 42, 0.85)";
-  el.style.color = "#e2e8f0";
-  el.style.padding = "10px 12px";
-  el.style.borderRadius = "10px";
-  el.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, Arial";
-  el.style.fontSize = "13px";
-  el.style.lineHeight = "1.25";
-  el.style.maxWidth = "320px";
-  el.innerHTML = `
-    <div style="font-weight:700;margin-bottom:6px;">Курс / Дистанция</div>
-    <div>Клик A: —</div>
-    <div>Клик B: —</div>
-    <div style="margin-top:6px;">Курс (истинный север): —</div>
-    <div>Дистанция: —</div>
+  // Создаём контейнер ВНУТРИ карты — всегда поверх тайлов
+  const mapEl = document.querySelector(".leaflet-control-zoom");
+  const container = document.createElement("div");
+  container.id = "bearing-distance-overlay";
+  container.style.position = "absolute";
+  container.style.bottom = "60px";
+  container.style.left = "14px";
+  container.style.zIndex = "1200"; // выше зума
+  container.style.background = "rgba(15, 23, 42, 0.88)";
+  container.style.color = "#e2e8f0";
+  container.style.padding = "10px 14px";
+  container.style.borderRadius = "10px";
+  container.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, Arial";
+  container.style.fontSize = "13px";
+  container.style.lineHeight = "1.5";
+  container.style.maxWidth = "280px";
+  container.style.backdropFilter = "blur(6px)";
+  container.style.border = "1px solid rgba(148, 163, 184, 0.25)";
+  container.style.boxShadow = "0 4px 16px rgba(0,0,0,0.25)";
+  container.innerHTML = `
+    <div style="font-weight:700;margin-bottom:6px;font-size:14px;color:#f8fafc;">📏 Курс / Дистанция</div>
+    <div id="bd-click-a" style="margin-bottom:2px;">Клик A: —</div>
+    <div id="bd-click-b" style="margin-bottom:6px;">Клик B: —</div>
+    <div id="bd-bearing" style="margin-bottom:2px;">Курс (истинный север): —</div>
+    <div id="bd-distance">Дистанция: —</div>
+    <div style="margin-top:8px;font-size:11px;opacity:0.7;">Перетащите линию по карте</div>
   `;
 
-  document.body.appendChild(el);
+  container.style.display = "none"; // скрыта до первого клика
+  document.body.appendChild(container);
+}
+
+function clearBearingOverlays() {
+  const s = bearingState;
+  if (s.lineLayer)    { map.removeLayer(s.lineLayer);   s.lineLayer = null; }
+  if (s.arrowLayer)   { map.removeLayer(s.arrowLayer);    s.arrowLayer = null; }
+  if (s.markerALayer) { map.removeLayer(s.markerALayer); s.markerALayer = null; }
+  if (s.markerBLayer) { map.removeLayer(s.markerBLayer); s.markerBLayer = null; }
+}
+
+function updateBearingDisplay() {
+  const s = bearingState;
+  const el = document.getElementById("bearing-distance-overlay");
+  if (!el) return;
+
+  const fmtCoord = (p) => `(${p.lat.toFixed(3)}, ${p.lon.toFixed(3)})`;
+
+  document.getElementById("bd-click-a").textContent   = `Клик A: ${s.clickA ? fmtCoord(s.clickA) : "—"}`;
+  document.getElementById("bd-click-b").textContent   = `Клик B: ${s.clickB ? fmtCoord(s.clickB) : "—"}`;
+
+  if (s.clickA && s.clickB) {
+    const brng = Math.round(computeTrueBearingDeg(s.clickA.lat, s.clickA.lon, s.clickB.lat, s.clickB.lon));
+    const dist = computeHaversineKm(s.clickA.lat, s.clickA.lon, s.clickB.lat, s.clickB.lon);
+
+    document.getElementById("bd-bearing").textContent   = `Курс (истинный север): ${brng}°`;
+    // Показываем и км, и мили
+    const distMi = dist * 0.539957;
+    const fmtDist = dist >= 10 ? `${dist.toFixed(1)} км` : `${(dist * 1000).toFixed(0)} м`;
+    document.getElementById("bd-distance").textContent   = `Дистанция: ${fmtDist} (${distMi.toFixed(1)} mi)`;
+  } else {
+    document.getElementById("bd-bearing").textContent   = "Курс (истинный север): —";
+    document.getElementById("bd-distance").textContent   = "Дистанция: —";
+  }
+}
+
+function drawBearingLine() {
+  const s = bearingState;
+  clearBearingOverlays();
+
+  if (!s.clickA) return;
+
+  // Маркер точки A (синий круг) — всегда показывается
+  const markerStyle = (color) => ({
+    radius: 7, fillColor: color, color: "#fff", weight: 2, fillOpacity: 1,
+  });
+
+  s.markerALayer = new L.CircleMarker([s.clickA.lat, s.clickA.lon], markerStyle("#3b82f6")).addTo(map);
+  s.markerALayer.bindTooltip("A", { permanent: true, direction: "top", className: "bearing-marker-tooltip", offset: [0, -8] });
+
+  if (!s.clickB) return;
+
+  // Маркер точки B (красный круг)
+  s.markerBLayer = new L.CircleMarker([s.clickB.lat, s.clickB.lon], markerStyle("#ef4444")).addTo(map);
+  s.markerBLayer.bindTooltip("B", { permanent: true, direction: "top", className: "bearing-marker-tooltip", offset: [0, -8] });
+
+  // Основная линия-релька (пунктирная)
+  const latlngs = [
+    [s.clickA.lat, s.clickA.lon],
+    [s.clickB.lat, s.clickB.lon],
+  ];
+  s.lineLayer = new L.Polyline(latlngs, {
+    color: "#f59e0b",
+    weight: 3,
+    opacity: 0.9,
+    dashArray: "10, 8",
+    className: "bearing-line",
+  }).addTo(map);
+
+  // Стрелка направления на точке B (указатель курса)
+  // const brng = computeTrueBearingDeg(s.clickA.lat, s.clickA.lon, s.clickB.lat, s.clickB.lon);
+  // console.log(brng);
+  // const arrowSize = 20;
+  // const arrowAngle = brng ;
+
+  // // Вершины треугольной стрелки
+  // const tipX = Math.sin(arrowAngle) * arrowSize;
+  // const tipY = -Math.cos(arrowAngle) * arrowSize;
+  // const tailX = Math.sin(arrowAngle + Math.PI - 0.5) * arrowSize * 0.6;
+  // const tailY = -Math.cos(arrowAngle + Math.PI - 0.5) * arrowSize * 0.6;
+  // const tailX2 = Math.sin(arrowAngle + Math.PI + 0.5) * arrowSize * 0.6;
+  // const tailY2 = -Math.cos(arrowAngle + Math.PI + 0.5) * arrowSize * 0.6;
+
+  // const arrowIcon = new L.DivIcon({
+  //   className: "bearing-arrow-icon",
+  //   html: `<svg width="${arrowSize * 2}" height="${arrowSize * 2}" viewBox="0 0 ${arrowSize * 2} ${arrowSize * 2}" style="pointer-events:none;">
+  //     <polygon points="${arrowSize + tipX},${arrowSize - tipY} ${arrowSize + tailX},${arrowSize - tailY} ${arrowSize + tailX2},${arrowSize - tailY2}" fill="#ef4444" stroke="#fff" stroke-width="1.5" />
+  //   </svg>`,
+  //   iconSize: [arrowSize * 2, arrowSize * 2],
+  //   iconAnchor: [arrowSize, arrowSize],
+  // });
+
+  // s.arrowLayer = new L.Marker([s.clickB.lat, s.clickB.lon], { icon: arrowIcon }).addTo(map);
+
+  updateBearingDisplay();
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -948,39 +1058,39 @@ document.addEventListener("DOMContentLoaded", () => {
 
   ensureBearingDistanceOverlay();
 
-  // 2 клика: A затем B
-  let clickA = null; // {lat,lon}
-  let clickB = null;
+  // Панель скрыта пока нет точки A
+  const overlayEl = document.getElementById("bearing-distance-overlay");
 
   map.on("click", (e) => {
     const lat = e.latlng.lat;
     const lon = e.latlng.lng;
 
-    if (!clickA) {
-      clickA = { lat, lon };
-      clickB = null;
+    if (!bearingState.clickA) {
+      bearingState.clickA = { lat, lon };
+      bearingState.clickB = null;
+      clearBearingOverlays();
+      // Показываем панель при первом клике
+      if (overlayEl) overlayEl.style.display = "block";
     } else {
-      clickB = { lat, lon };
+      bearingState.clickB = { lat, lon };
     }
 
-    const overlay = document.getElementById("bearing-distance-overlay");
-    if (!overlay) return;
+    drawBearingLine();
+  });
 
-    const fmt = (v) => (Math.round(v * 1000) / 1000).toFixed(3);
-    overlay.innerHTML = `
-      <div style="font-weight:700;margin-bottom:6px;">Курс / Дистанция</div>
-      <div>Клик A: ${clickA ? `(${fmt(clickA.lat)}, ${fmt(clickA.lon)})` : '—'}</div>
-      <div>Клик B: ${clickB ? `(${fmt(clickB.lat)}, ${fmt(clickB.lon)})` : '—'}</div>
-      <div style="margin-top:6px;">Курс (истинный север): ${
-        (clickA && clickB) ? `${Math.round(computeTrueBearingDeg(clickA.lat, clickA.lon, clickB.lat, clickB.lon))}°` : '—'
-      }</div>
-      <div>Дистанция: ${
-        (clickA && clickB)
-          ? `${computeHaversineKm(clickA.lat, clickA.lon, clickB.lat, clickB.lon).toFixed(1)} км`
-          : '—'
-      }</div>
-      <div style="margin-top:6px;opacity:0.85;">(Сделайте ещё 2 клика для обновления)</div>
-    `;
+  // Перетаскивание точки B по карте
+  map.on("mousemove", (e) => {
+    if (!bearingState.clickA || bearingState.clickB) return;
+    bearingState.clickB = { lat: e.latlng.lat, lon: e.latlng.lng };
+    drawBearingLine();
+  });
+
+  // Сброс линейки по двойному клику / правой кнопке
+  map.on("contextmenu", () => {
+    clearBearingOverlays();
+    bearingState.clickA = null;
+    bearingState.clickB = null;
+    if (overlayEl) overlayEl.style.display = "none";
   });
 
   // Set 5-minute auto refresh for both datasets

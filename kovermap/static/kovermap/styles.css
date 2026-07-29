@@ -746,6 +746,26 @@ h1 {
     color: #ef4444;
 }
 
+/* ===== Bearing / Ruler tool styles ===== */
+.bearing-marker-tooltip {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    font-size: 12px;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.bearing-arrow-icon {
+    background: transparent !important;
+    border: none !important;
+}
+
+/* Линия-релька на карте (можно анимировать) */
+.bearing-line {
+    pointer-events: none;
+}
+
 /* Карточка сегмента в боковой панели */
 .route-leg-card {
     background: #ffffff;
