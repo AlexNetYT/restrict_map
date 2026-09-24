@@ -1,12 +1,6 @@
 // Initialize map
 const map = new L.Map("map").setView([60, 100], 4);
-// const track = document.getElementById('ticker_track_line');
-// const content = track.querySelector('.ticker_item');
-const SPEED = 1;
-let updateMarqueeAnimation = null; 
-// // Клонируем блок со всеми спанами/стронгами внутри и добавляем в трек
-// const clone = content.cloneNode(true);
-// track.appendChild(clone);
+let updateMarqueeAnimation = null;
 
 // Add CartoDB tiles
 var CartoDB_Positron = new L.TileLayer(
@@ -1201,31 +1195,6 @@ function drawBearingLine() {
     dashArray: "10, 8",
     className: "bearing-line",
   }).addTo(map);
-
-  // Стрелка направления на точке B (указатель курса)
-  // const brng = computeTrueBearingDeg(s.clickA.lat, s.clickA.lon, s.clickB.lat, s.clickB.lon);
-  // console.log(brng);
-  // const arrowSize = 20;
-  // const arrowAngle = brng ;
-
-  // // Вершины треугольной стрелки
-  // const tipX = Math.sin(arrowAngle) * arrowSize;
-  // const tipY = -Math.cos(arrowAngle) * arrowSize;
-  // const tailX = Math.sin(arrowAngle + Math.PI - 0.5) * arrowSize * 0.6;
-  // const tailY = -Math.cos(arrowAngle + Math.PI - 0.5) * arrowSize * 0.6;
-  // const tailX2 = Math.sin(arrowAngle + Math.PI + 0.5) * arrowSize * 0.6;
-  // const tailY2 = -Math.cos(arrowAngle + Math.PI + 0.5) * arrowSize * 0.6;
-
-  // const arrowIcon = new L.DivIcon({
-  //   className: "bearing-arrow-icon",
-  //   html: `<svg width="${arrowSize * 2}" height="${arrowSize * 2}" viewBox="0 0 ${arrowSize * 2} ${arrowSize * 2}" style="pointer-events:none;">
-  //     <polygon points="${arrowSize + tipX},${arrowSize - tipY} ${arrowSize + tailX},${arrowSize - tailY} ${arrowSize + tailX2},${arrowSize - tailY2}" fill="#ef4444" stroke="#fff" stroke-width="1.5" />
-  //   </svg>`,
-  //   iconSize: [arrowSize * 2, arrowSize * 2],
-  //   iconAnchor: [arrowSize, arrowSize],
-  // });
-
-  // s.arrowLayer = new L.Marker([s.clickB.lat, s.clickB.lon], { icon: arrowIcon }).addTo(map);
 
   updateBearingDisplay();
 }

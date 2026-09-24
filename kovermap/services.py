@@ -1,11 +1,17 @@
+import logging
+import os
 import re
 import json
+import xml.etree.ElementTree as ET
+from datetime import timedelta
+
 from bs4 import BeautifulSoup
 import requests
-from kovermap.models import Airport
-import django
-from datetime import timedelta
+from django.conf import settings
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
+
+from kovermap.models import Airport, UpdateLog
 
 # Network/service defaults (production safety)
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 10
@@ -100,6 +106,8 @@ from django.utils import timezone
 from kovermap.models import Airport, UpdateLog
 
 logger = logging.getLogger(__name__)
+
+
 def update_all_old():
     cutoff = timezone.now() - timedelta(hours=6)
 
@@ -109,20 +117,21 @@ def update_all_old():
     )
     all_aps.update(status="OPEN", last_updated=timezone.now())
 
+
 class AirportUpdateService:
-    """Service to update airport statuses from Telegram"""
-    
+    """Service to update airport statuses from Telegram."""
+
     TELEGRAM_URL = "https://t.me/s/favt_info"
-    update_all_old()
-    logger.info(f"Cleared old airport statuses (older than 1 day).")
+
     @staticmethod
     def update_from_telegram():
-        """Update airport statuses from Telegram"""
+        """Update airport statuses from Telegram."""
 
         try:
             logger.info("Starting airport status update from Telegram...")
-            
-            # Parse data from Telegram
+            update_all_old()
+            logger.info("Cleared old airport statuses (older than 1 day).")
+
             manager = AirportStatusManager()
             updated_data = manager.update_statuses_from_url(AirportUpdateService.TELEGRAM_URL)
             
@@ -177,11 +186,6 @@ class AirportUpdateService:
             return log.timestamp
         return None
 
-
-import os
-import xml.etree.ElementTree as ET
-from django.conf import settings
-from django.utils.dateparse import parse_datetime
 
 class KORestrictionParser:
     @staticmethod
