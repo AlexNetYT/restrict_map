@@ -3,12 +3,23 @@ import json
 from bs4 import BeautifulSoup
 import requests
 from kovermap.models import Airport
+from datetime import timedelta
+from django.utils import timezone
+cutoff = timezone.now() - timedelta(days=1)
+
 class AirportStatusManager:
     def __init__(self):
         self.airports = {}
         self.city_index = {}
         self.airport_name_index = {}
         self._load_data()
+    def clear_old(self):
+        all_aps = Airport.objects.filter(
+    status__in=["CLOSED", "RESTRICTED"],
+    status_updated__lt=cutoff
+)
+        all_aps.update(status="OPEN", status_updated=timezone.now())
+
 
     def _load_data(self):
         # with open(self.json_path, "r", encoding="utf-8") as f:
@@ -27,9 +38,9 @@ class AirportStatusManager:
         if "СНЯТЫ" in text.upper():
             status = "OPEN"
         elif "ВВЕДЕНЫ" in text.upper():
-            status = "RESTRICTED"
+            status = "CLOSED"
         elif "принимают и отправляют" in text.lower() or "принимает и отправляет" in text.lower():
-            status = "WORKING_LIMITED"
+            status = "RESTRICTED"
         
         if status == "UNKNOWN":
             return None

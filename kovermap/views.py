@@ -100,6 +100,7 @@ def airports_api(request):
             'status',
             'latitude',
             'longitude',
+            'last_updated',
         )
     )
 

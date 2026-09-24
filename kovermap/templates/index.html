@@ -15,47 +15,40 @@
     <title>Kover Map</title>
   </head>
   <body>
-    <h1>Kover Map</h1>
-    <div class="top_bar">
-      <div class="topbar_card font_airports">
-        <h2>Всего Аэропортов</h2>
-        <p id="total-airports">0</p>
+    <header class="page_header">
+      <div class="page_header_text">
+        <div class="page_kicker">оперативный мониторинг</div>
+        <h1>Kover Map</h1>
       </div>
-      <button type="button" class="topbar_card font_airports topbar-filter" data-status="CLOSED">
-        <h2>Закрытые Аэропорты</h2>
-        <p id="closed-airports">0</p>
-      </button>
-
-      <button type="button" class="topbar_card font_airports topbar-filter" data-status="OPEN">
-        <h2>Открытые Аэропорты</h2>
-        <p id="open-airports">0</p>
-      </button>
-
-      <button type="button" class="topbar_card font_airports topbar-filter" data-status="RESTRICTED">
-        <h2>Аэропорты с ограничениями</h2>
-        <p id="restricted-airports">0</p>
-      </button>
-
-      
-      <!-- KO restrictions stats cards -->
-      <div class="topbar_card card-ko-total">
-        <h2>Всего КО</h2>
-        <p id="total-ko">0</p>
+      <div class="page_header_status">
+        <span class="status-pill status-pill-live">live</span>
+        <span class="header-meta">данные обновляются регулярно</span>
       </div>
-      <div class="topbar_card card-ko-active">
-        <h2>Активно КО</h2>
-        <p id="active-ko">0</p>
-      </div>
-      <div class="topbar_card card-ko-upcoming">
-        <h2>Предстоящие КО</h2>
-        <p id="upcoming-ko">0</p>
-      </div>
+    </header>
 
-      <div class="topbar_card font_update">
-        <h2>Последнее обновление</h2>
-        <p id="last-update">—</p>
+    <div class="status_ticker" aria-live="polite">
+      <div class="ticker_track" id="ticker_track_line">
+        <div class="ticker_content" id="ticker_original_content">
+          <span class="ticker_item"><span class="ticker_label">Открыто</span> <strong id="ticker-open">0</strong></span>
+          <span class="ticker_item"><span class="ticker_label">Закрыто</span> <strong id="ticker-closed">0</strong></span>
+          <span class="ticker_item"><span class="ticker_label">Ограничения</span> <strong id="ticker-restricted">0</strong></span>
+          <span class="ticker_item"><span class="ticker_label">Активные КО</span> <strong id="ticker-ko-active">0</strong></span>
+          <span class="ticker_item"><span class="ticker_label">Предстоящие КО</span> <strong id="ticker-ko-upcoming">0</strong></span>
+          <span class="ticker_item"><span class="ticker_label">Обновлено</span> <strong id="ticker-last-update">—</strong></span>
+          <span class="ticker_item"><span class="ticker_label">⚠️ Не используйте эти данные для подготовки к полёту.</span></span>
+        </div>
       </div>
     </div>
+    <button
+      type="button"
+      id="mobile-map-toggle"
+      class="mobile-map-toggle"
+      data-mobile-map-open-class="mobile-map-open"
+      aria-label="Показать карту"
+    >
+      <span aria-hidden="true">🗺️</span>
+      <span>Карта</span>
+    </button>
     <div class="central_block">
         <div class="left_panel">
             <div class="panel_tabs">
@@ -73,18 +66,14 @@
                         placeholder="🔍 Поиск по названию или ICAO..." 
                         class="search-input"
                     >
-                    <div class="filter_controls">
-                        <label for="status-filter" class="filter-label">Фильтр:</label>
-                        <select id="status-filter" class="status-filter">
-                            <option value="">Все статусы</option>
-                            <option value="OPEN">Открыты</option>
-                            <option value="CLOSED">Закрыты</option>
-                            <option value="RESTRICTED">Ограничения</option>
-                        </select>
-                        <button id="refresh-btn" class="refresh-btn" title="Обновить статусы">🔄</button>
+                    <div class="quick_filter_row" aria-label="Быстрые фильтры статусов">
+                        <button type="button" class="quick-filter-btn active" data-status="">Все</button>
+                        <button type="button" class="quick-filter-btn" data-status="OPEN">Открыто</button>
+                        <button type="button" class="quick-filter-btn" data-status="CLOSED">Закрыто</button>
+                        <button type="button" class="quick-filter-btn" data-status="RESTRICTED">Ограничения</button>
                     </div>
+                    
                 </div>
-                <div class="disclaimer" id="disclaimer">⚠️ Не используйте эти данные для подготовки к полёту.</div>
                 <ul class="airports_list">
                     <!-- Airports will be loaded by JavaScript -->
                 </ul>
@@ -139,8 +128,11 @@
                 </div>
             </div>
         </div>
-        <div class="map_module" id="map"></div>
+        <div class="map_module" id="map">
+            <button type="button" class="mobile-map-close" id="mobile-map-close" aria-label="Закрыть карту">✕</button>
+        </div>
     </div>
+    
     <div id="route-warnings" style="display: none; margin-top: 8px; font-size: 12px; color: #ef4444; background: #fef2f2; padding: 8px; border-radius: 4px;"></div>
     <script src="{% static 'leaflet/leaflet-global.js' %}"></script>
     <script src="{% static 'kovermap/map.js' %}"></script>

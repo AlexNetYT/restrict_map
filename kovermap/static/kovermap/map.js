@@ -1,5 +1,12 @@
 // Initialize map
 const map = new L.Map("map").setView([60, 100], 4);
+// const track = document.getElementById('ticker_track_line');
+// const content = track.querySelector('.ticker_item');
+const SPEED = 1;
+let updateMarqueeAnimation = null; 
+// // Клонируем блок со всеми спанами/стронгами внутри и добавляем в трек
+// const clone = content.cloneNode(true);
+// track.appendChild(clone);
 
 // Add CartoDB tiles
 var CartoDB_Positron = new L.TileLayer(
@@ -11,7 +18,11 @@ var CartoDB_Positron = new L.TileLayer(
     maxZoom: 20,
   },
 );
-CartoDB_Positron.addTo(map);
+var LatLng_Map = new L.TileLayer(
+  'https://tiles.latlng.work/v1/tiles/{z}/{x}/{y}.png?key=pk_latlng_x0lzxypv4d25een4bnd6aw2sbzd571gk&style=light',
+  { attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors' }
+)
+LatLng_Map.addTo(map);
 
 // Airport Status colors
 const statusColors = {
@@ -34,6 +45,9 @@ let filteredAirports = [];
 let currentSearchTerm = "";
 let currentStatusFilter = "";
 let lastUpdateTime = null;
+const tickerMessageDurationMs = 5 * 60 * 1000;
+const lastAirportStatuses = new Map();
+const lastKoStatuses = new Map();
 
 // Store KO Restrictions data
 let koData = [];
@@ -50,6 +64,7 @@ async function loadAirports() {
   try {
     const response = await fetch("/api/airports/");
     const data = await response.json();
+    const previousAirports = airportsData;
     airportsData = data.airports;
     filteredAirports = [...airportsData];
     lastUpdateTime = data.last_update;
@@ -57,6 +72,12 @@ async function loadAirports() {
     // Update airport statistics
     updateAirportStats(data.stats);
     updateLastUpdateTime(lastUpdateTime);
+
+    if (previousAirports.length > 0) {
+      notifyAirportStatusChanges(airportsData);
+    } else {
+      airportsData.forEach((airport) => lastAirportStatuses.set(airport.icao, airport.status));
+    }
 
     // Render airports on map and in list
     renderAirports(filteredAirports);
@@ -70,11 +91,18 @@ async function loadRestrictions() {
   try {
     const response = await fetch("/api/ko/");
     const data = await response.json();
+    const previousKoData = koData;
     koData = data.restrictions;
     filteredKo = [...koData];
 
     // Update KO stats cards
     updateKoStats(data.stats);
+
+    if (previousKoData.length > 0) {
+      notifyKoStatusChanges(koData);
+    } else {
+      koData.forEach((restriction) => lastKoStatuses.set(restriction.id, restriction.status));
+    }
     
     // Populate FIR list dynamically
     populateFirFilter(koData);
@@ -88,47 +116,126 @@ async function loadRestrictions() {
 
 // Update top bar airport statistics
 function updateAirportStats(stats) {
-  document.getElementById("total-airports").textContent = stats.total;
-  document.getElementById("closed-airports").textContent = stats.closed;
-  document.getElementById("open-airports").textContent = stats.open;
-  document.getElementById("restricted-airports").textContent = stats.restricted;
+  const legacyTotal = document.getElementById("total-airports");
+  const legacyClosed = document.getElementById("closed-airports");
+  const legacyOpen = document.getElementById("open-airports");
+  const legacyRestricted = document.getElementById("restricted-airports");
+
+  if (legacyTotal) legacyTotal.textContent = stats.total;
+  if (legacyClosed) legacyClosed.textContent = stats.closed;
+  if (legacyOpen) legacyOpen.textContent = stats.open;
+  if (legacyRestricted) legacyRestricted.textContent = stats.restricted;
+
+  const tickerOpen = document.getElementById("ticker-open");
+  const tickerClosed = document.getElementById("ticker-closed");
+  const tickerRestricted = document.getElementById("ticker-restricted");
+
+  if (tickerOpen) tickerOpen.textContent = stats.open;
+  if (tickerClosed) tickerClosed.textContent = stats.closed;
+  if (tickerRestricted) tickerRestricted.textContent = stats.restricted;
 }
 
 // Update top bar KO statistics
 function updateKoStats(stats) {
-  document.getElementById("total-ko").textContent = stats.total;
-  document.getElementById("active-ko").textContent = stats.active;
-  document.getElementById("upcoming-ko").textContent = stats.upcoming;
+  const legacyTotal = document.getElementById("total-ko");
+  const legacyActive = document.getElementById("active-ko");
+  const legacyUpcoming = document.getElementById("upcoming-ko");
+
+  if (legacyTotal) legacyTotal.textContent = stats.total;
+  if (legacyActive) legacyActive.textContent = stats.active;
+  if (legacyUpcoming) legacyUpcoming.textContent = stats.upcoming;
+
+  const tickerKoActive = document.getElementById("ticker-ko-active");
+  const tickerKoUpcoming = document.getElementById("ticker-ko-upcoming");
+
+  if (tickerKoActive) tickerKoActive.textContent = stats.active;
+  if (tickerKoUpcoming) tickerKoUpcoming.textContent = stats.upcoming;
 }
 
 // Update last update time display
-function updateLastUpdateTime(timestamp) {
-  const element = document.getElementById("last-update");
-  if (!timestamp) {
-    element.textContent = "—";
-    return;
-  }
+function formatRelativeTime(timestamp, fallback = "—") {
+  if (!timestamp) return fallback;
 
   const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now - date;
+  if (Number.isNaN(date.getTime())) return fallback;
+
+  const diffMs = Date.now() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
 
-  let displayText;
-  if (diffMins < 1) {
-    displayText = "Только что";
-  } else if (diffMins < 60) {
-    displayText = `${diffMins} мин назад`;
-  } else {
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) {
-      displayText = `${diffHours} ч назад`;
-    } else {
-      displayText = date.toLocaleString("ru-RU");
-    }
-  }
+  if (diffMins < 1) return "только что";
+  if (diffMins < 60) return `${diffMins} мин назад`;
 
-  element.textContent = displayText;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours} ч назад`;
+
+  return date.toLocaleString("ru-RU");
+}
+
+function updateLastUpdateTime(timestamp) {
+  const tickerLastUpdate = document.getElementById("ticker-last-update");
+  const displayText = formatRelativeTime(timestamp, "—");
+
+  if (tickerLastUpdate) {
+    tickerLastUpdate.textContent = displayText;
+  }
+}
+
+function buildTickerEventLabel(minutesAgo = 1) {
+  return `• ${minutesAgo} мин назад`;
+}
+
+function notifyAirportStatusChanges(nextAirports) {
+  nextAirports.forEach((airport) => {
+    const previousStatus = lastAirportStatuses.get(airport.icao);
+    const nextStatus = airport.status;
+
+    if (previousStatus && previousStatus !== nextStatus) {
+      const minutesAgo = 1;
+      let message = `${airport.name} (${airport.icao}) обновлён ${buildTickerEventLabel(minutesAgo)}`;
+      let type = "info";
+
+      if (nextStatus === "OPEN") {
+        message = `✈ ${airport.name} (${airport.icao}) открыт ${buildTickerEventLabel(minutesAgo)}`;
+        type = "success";
+      } else if (nextStatus === "CLOSED") {
+        message = `✈ ${airport.name} (${airport.icao}) закрыт ${buildTickerEventLabel(minutesAgo)}`;
+        type = "error";
+      } else if (nextStatus === "RESTRICTED") {
+        message = `✈ ${airport.name} (${airport.icao}) ограничения ${buildTickerEventLabel(minutesAgo)}`;
+        type = "warning";
+      }
+
+      addTickerMessage(type, message, tickerMessageDurationMs);
+    }
+
+    lastAirportStatuses.set(airport.icao, nextStatus);
+  });
+}
+
+function notifyKoStatusChanges(nextRestrictions) {
+  nextRestrictions.forEach((restriction) => {
+    const previousStatus = lastKoStatuses.get(restriction.id);
+    const nextStatus = restriction.status;
+
+    if (previousStatus && previousStatus !== nextStatus) {
+      const minutesAgo = 2;
+      const zoneName = restriction.rvmname || restriction.id || "Зона";
+      let message = `${zoneName} обновлена ${buildTickerEventLabel(minutesAgo)}`;
+      let type = "info";
+
+      if (nextStatus === "active") {
+        message = `🛡️ ${zoneName} начала действовать ${buildTickerEventLabel(minutesAgo)}`;
+        type = "warning";
+      } else if (nextStatus === "upcoming") {
+        message = `🛡️ ${zoneName} завершилась ${buildTickerEventLabel(minutesAgo)}`;
+        type = "success";
+      }
+
+      addTickerMessage(type, message, tickerMessageDurationMs);
+    }
+
+    lastKoStatuses.set(restriction.id, nextStatus);
+  });
 }
 
 // Dynamically populate FIR filter options
@@ -156,6 +263,51 @@ function populateFirFilter(restrictions) {
       option.selected = true;
     }
     firFilter.appendChild(option);
+  });
+}
+
+const MOBILE_MAP_CLASS = "mobile-map-open";
+
+function isMobileViewport() {
+  return window.matchMedia("(max-width: 768px)").matches;
+}
+
+function toggleMobileMap(shouldOpen) {
+  const nextState = typeof shouldOpen === "boolean" ? shouldOpen : !document.body.classList.contains(MOBILE_MAP_CLASS);
+  document.body.classList.toggle(MOBILE_MAP_CLASS, nextState);
+
+  const toggleButton = document.getElementById("mobile-map-toggle");
+  if (toggleButton) {
+    toggleButton.setAttribute("aria-expanded", String(nextState));
+  }
+
+  if (map && typeof map.invalidateSize === "function") {
+    setTimeout(() => map.invalidateSize(), 80);
+  }
+}
+
+function setupMobileMapControls() {
+  const toggleButton = document.getElementById("mobile-map-toggle");
+  const closeButton = document.getElementById("mobile-map-close");
+
+  if (toggleButton) {
+    toggleButton.addEventListener("click", () => toggleMobileMap(true));
+  }
+
+  if (closeButton) {
+    closeButton.addEventListener("click", () => toggleMobileMap(false));
+  }
+
+  window.addEventListener("resize", () => {
+    if (!isMobileViewport()) {
+      toggleMobileMap(false);
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && document.body.classList.contains(MOBILE_MAP_CLASS)) {
+      toggleMobileMap(false);
+    }
   });
 }
 
@@ -196,24 +348,45 @@ function setupTabs() {
 }
 
 // Setup event listeners for search and filters
+function syncQuickFilterButtons() {
+  const quickButtons = document.querySelectorAll(".quick-filter-btn");
+  quickButtons.forEach((button) => {
+    const isActive = button.dataset.status === currentStatusFilter;
+    button.classList.toggle("active", isActive);
+  });
+}
+
 function setupEventListeners() {
+  setupMobileMapControls();
+
   const searchInput = document.getElementById("search-input");
-  const statusFilter = document.getElementById("status-filter");
-  const refreshBtn = document.getElementById("refresh-btn");
+  // const statusFilter = document.getElementById("status-filter");
+  // const refreshBtn = document.getElementById("refresh-btn");
   const routeInput = document.getElementById("rte-input");
   const buildRouteBtn = document.getElementById("rte-btn");
+  const quickButtons = document.querySelectorAll(".quick-filter-btn");
 
   searchInput.addEventListener("input", (e) => {
     currentSearchTerm = e.target.value.toUpperCase();
     applyFilters();
   });
 
-  statusFilter.addEventListener("change", (e) => {
-    currentStatusFilter = e.target.value;
-    applyFilters();
+  // statusFilter.addEventListener("change", (e) => {
+  //   currentStatusFilter = e.target.value;
+  //   syncQuickFilterButtons();
+  //   applyFilters();
+  // });
+
+  quickButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      currentStatusFilter = button.dataset.status || "";
+      // statusFilter.value = currentStatusFilter;
+      syncQuickFilterButtons();
+      applyFilters();
+    });
   });
 
-  refreshBtn.addEventListener("click", refreshData);
+  // refreshBtn.addEventListener("click", refreshData);
   if (buildRouteBtn && routeInput) {
     buildRouteBtn.addEventListener("click", () => {
       loadRoute(routeInput.value.trim());
@@ -260,37 +433,37 @@ function getCsrfToken() {
 }
 
 // Manual refresh
-async function refreshData() {
-  const btn = document.getElementById("refresh-btn");
-  btn.classList.add("loading");
-  btn.disabled = true;
+// async function refreshData() {
+//   const btn = document.getElementById("refresh-btn");
+//   btn.classList.add("loading");
+//   btn.disabled = true;
 
-  try {
-    const response = await fetch("/api/airports/update/", {
-      method: "POST",
-      headers: {
-        "X-CSRFToken": getCsrfToken(),
-        "Content-Type": "application/json",
-      },
-    });
+//   try {
+//     const response = await fetch("/api/airports/update/", {
+//       method: "POST",
+//       headers: {
+//         "X-CSRFToken": getCsrfToken(),
+//         "Content-Type": "application/json",
+//       },
+//     });
 
-    const data = await response.json();
+//     const data = await response.json();
 
-    if (data.success) {
-      await loadAirports();
-      await loadRestrictions();
-      showNotification("✓ Данные успешно обновлены!", "success");
-    } else {
-      showNotification(`✗ Ошибка: ${data.message}`, "error");
-    }
-  } catch (error) {
-    console.error("Error refreshing data:", error);
-    showNotification("✗ Ошибка обновления", "error");
-  } finally {
-    btn.classList.remove("loading");
-    btn.disabled = false;
-  }
-}
+//     if (data.success) {
+//       await loadAirports();
+//       await loadRestrictions();
+//       showNotification("✓ Данные успешно обновлены!", "success");
+//     } else {
+//       showNotification(`✗ Ошибка: ${data.message}`, "error");
+//     }
+//   } catch (error) {
+//     console.error("Error refreshing data:", error);
+//     showNotification("✗ Ошибка обновления", "error");
+//   } finally {
+//     btn.classList.remove("loading");
+//     btn.disabled = false;
+//   }
+// }
 
 // Show notification
 function showNotification(message, type = "info") {
@@ -299,6 +472,7 @@ function showNotification(message, type = "info") {
 
 // Apply search and filter for airports
 function applyFilters() {
+  syncQuickFilterButtons();
   filteredAirports = airportsData.filter((airport) => {
     // topbar filter supports active button via currentStatusFilter
     if (currentStatusFilter && airport.status !== currentStatusFilter) {
@@ -696,7 +870,13 @@ function renderAirports(airports) {
 
     const airportInfo = document.createElement("span");
     airportInfo.className = "airport-info";
-    airportInfo.innerHTML = `<strong>${airport.name}</strong><br><small>${airport.icao}</small>`;
+    airportInfo.innerHTML = `
+      <strong>${airport.name}</strong>
+      <small>${airport.icao}</small>
+      <div class="airport-meta">
+        <span class="airport-updated">Обновлено: ${formatRelativeTime(airport.last_updated, "—")}</span>
+      </div>
+    `;
 
     li.appendChild(blinkDot);
     li.appendChild(airportInfo);
@@ -1049,8 +1229,92 @@ function drawBearingLine() {
 
   updateBearingDisplay();
 }
+// 1. Выносим переменную на самый верх, чтобы её видели абсолютно все функции
 
+
+function loadAnimation() {
+  const track = document.getElementById('ticker_track_line');
+  const originalContent = document.getElementById('ticker_original_content');
+  if (!track || !originalContent) return;
+
+  updateMarqueeAnimation = function() {
+    const clones = track.querySelectorAll('.ticker_content:not(#ticker_original_content)');
+    clones.forEach((clone) => clone.remove());
+
+    const contentWidth = originalContent.getBoundingClientRect().width;
+    if (!contentWidth) return;
+
+    const viewportWidth = track.parentElement ? track.parentElement.getBoundingClientRect().width : window.innerWidth;
+    const copiesNeeded = Math.ceil((viewportWidth + contentWidth) / contentWidth) + 1;
+
+    for (let i = 0; i < copiesNeeded; i++) {
+      const clone = originalContent.cloneNode(true);
+      clone.removeAttribute('id');
+      clone.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'));
+      track.appendChild(clone);
+    }
+
+    track.style.setProperty('--scroll-distance', `${-contentWidth}px`);
+    track.style.animation = 'scrollContinuous 24s linear infinite';
+  };
+
+  updateMarqueeAnimation();
+  if (!track.dataset.animationBound) {
+    window.addEventListener('resize', updateMarqueeAnimation);
+    track.dataset.animationBound = 'true';
+  }
+}
+
+function addTickerMessage(type, text, durationMs = 5000) {
+  const originalContent = document.getElementById('ticker_original_content');
+  if (!originalContent) return;
+
+  // 1. Создаем элемент для оригинальной строки
+  const newItem = document.createElement('span');
+  newItem.className = `ticker_item msg-${type}`;
+  newItem.innerHTML = text;
+  
+  // Уникальный маркер, чтобы потом найти именно этот элемент во всех копиях
+  const uniqueId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+  newItem.setAttribute('data-msg-id', uniqueId);
+
+  // 2. Пушим в конец оригинальной строки
+  originalContent.appendChild(newItem);
+
+  // 3. Приказываем системе пересобрать ленту с учетом нового элемента
+  if (typeof updateMarqueeAnimation === 'function') {
+    updateMarqueeAnimation();
+  }
+
+  // 4. По истечении времени удаляем элемент
+  setTimeout(() => {
+    // Находим этот элемент в оригинале и во всех клонах по маркеру
+    const targets = document.querySelectorAll(`[data-msg-id="${uniqueId}"]`);
+    
+    let originalRemoved = false;
+
+    targets.forEach(el => {
+      // Плавное исчезновение перед удалением
+      el.style.opacity = '0';
+      el.style.transform = 'scale(0.8)';
+      
+      setTimeout(() => {
+        el.remove();
+        // Пересчитываем анимацию ОДИН раз, когда удалены все элементы, чтобы строка не дергалась
+        if (!originalRemoved && typeof updateMarqueeAnimation === 'function') {
+          originalRemoved = true;
+          updateMarqueeAnimation();
+        }
+      }, 300);
+    });
+
+  }, durationMs);
+}
+
+// Инициализация при полной загрузке DOM (исправлен синтаксис)
 document.addEventListener("DOMContentLoaded", () => {
+  loadAnimation();
+
   loadAirports();
   loadRestrictions();
   setupTabs();
