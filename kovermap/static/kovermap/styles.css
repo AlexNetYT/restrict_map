@@ -1,3 +1,59 @@
+:root {
+    --bg-0: #eef5ff;
+    --bg-1: #f8fafc;
+    --bg-2: #edf2ff;
+    --panel: rgba(255, 255, 255, 0.78);
+    --panel-strong: #ffffff;
+    --panel-soft: #f8fafc;
+    --panel-muted: #f3f6fb;
+    --line: rgba(148, 163, 184, 0.22);
+    --line-strong: rgba(148, 163, 184, 0.34);
+    --text: #0f172a;
+    --text-2: #475569;
+    --text-3: #64748b;
+    --accent: #2563eb;
+    --accent-2: #60a5fa;
+    --accent-soft: rgba(37, 99, 235, 0.10);
+    --shadow: rgba(15, 23, 42, 0.08);
+    --shadow-strong: rgba(15, 23, 42, 0.14);
+    --chip: rgba(255, 255, 255, 0.72);
+    --chip-strong: rgba(255, 255, 255, 0.92);
+    --success: #22c55e;
+    --warning: #eab308;
+    --danger: #ef4444;
+}
+
+body[data-theme="dark"] {
+    --bg-0: #050b16;
+    --bg-1: #0b1220;
+    --bg-2: #111b2d;
+    --panel: rgba(15, 23, 42, 0.76);
+    --panel-strong: #111827;
+    --panel-soft: #172033;
+    --panel-muted: #0f172a;
+    --line: rgba(148, 163, 184, 0.2);
+    --line-strong: rgba(148, 163, 184, 0.3);
+    --text: #e5eefb;
+    --text-2: #c7d5ee;
+    --text-3: #9ca9be;
+    --accent: #8ab4ff;
+    --accent-2: #5eead4;
+    --accent-soft: rgba(138, 180, 255, 0.18);
+    --shadow: rgba(2, 6, 23, 0.55);
+    --shadow-strong: rgba(2, 6, 23, 0.72);
+    --chip: rgba(15, 23, 42, 0.82);
+    --chip-strong: rgba(17, 24, 39, 0.94);
+    --ticker-bg: rgba(17, 24, 39, 0.96);
+    --ticker-item-bg: rgba(26, 35, 52, 0.96);
+    --ticker-item-border: rgba(148, 163, 184, 0.2);
+    --ticker-label: #c7d5ee;
+    --ticker-text: #e5eefb;
+    --ticker-muted: #9ca9be;
+    --success: #34d399;
+    --warning: #fbbf24;
+    --danger: #f87171;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -11,13 +67,17 @@ body {
 }
 
 body {
-    background: linear-gradient(180deg, #edf4ff 0%, #f8fafc 24%, #eef2f7 100%);
+    background:
+        radial-gradient(circle at top left, rgba(96, 165, 250, 0.14), transparent 25%),
+        linear-gradient(180deg, var(--bg-0) 0%, var(--bg-1) 32%, var(--bg-2) 100%);
     font-family: "Unbounded", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     display: flex;
     flex-direction: column;
-    overflow: auto;
+    height: 100vh;
+    overflow: hidden;
     min-height: 100vh;
-    color: #111827;
+    color: var(--text);
+    transition: background 0.25s ease, color 0.25s ease;
 }
 
 .page_header {
@@ -25,18 +85,46 @@ body {
     align-items: flex-end;
     justify-content: space-between;
     gap: 1rem;
-    padding: 1rem 1.5rem 0.25rem;
+    padding: 1.1rem 1.5rem 0.5rem;
     flex-shrink: 0;
 }
+
+.page_header_actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.theme-toggle {
+    width: 2.65rem;
+    height: 2.65rem;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background: var(--panel);
+    color: var(--text);
+    box-shadow: 0 8px 18px var(--shadow);
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.theme-toggle:hover {
+    transform: translateY(-1px);
+    border-color: var(--accent);
+}
+
+.theme-toggle__icon {
+    font-size: 1rem;
+}
+
 .status_ticker {
     position: relative;
-    margin: 0.15rem 1.5rem 0;
+    margin: 0.3rem 1.5rem 0.7rem;
     overflow: hidden;
-    border-radius: 10px;
-    background: rgba(15, 23, 42, 0.035);
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
-    padding: 0.42rem 0; 
+    border-radius: 14px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    box-shadow: 0 10px 22px var(--shadow);
+    padding: 0.5rem 0.25rem;
 }
 
 .ticker_track {
@@ -63,19 +151,30 @@ body {
     align-items: center;
     gap: 0.35rem;
     font-size: 0.64rem;
-    color: #334155;
+    color: var(--text-2);
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    padding: 0.2rem 0.35rem;
+    padding: 0.28rem 0.5rem;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.58);
+    border: 1px solid rgba(148, 163, 184, 0.18);
     white-space: nowrap;
     transition: all 0.3s ease;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.3);
 }
 
-.ticker_label { color: #64748b; }
-.ticker_item strong { color: #0f172a; font-weight: 900; }
+body[data-theme="dark"] .ticker_item {
+    background: var(--ticker-item-bg);
+    border-color: var(--ticker-item-border);
+    color: var(--ticker-text);
+    box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.08);
+}
+
+.ticker_label { color: var(--text-3); }
+body[data-theme="dark"] .ticker_label { color: var(--ticker-label); }
+.ticker_item strong { color: var(--text); font-weight: 900; }
+body[data-theme="dark"] .ticker_item strong { color: var(--ticker-text); }
 .airport-meta {
     display: flex;
     flex-direction: column;
@@ -92,19 +191,34 @@ body {
 
 /* --- Новые стили для разных типов уведомлений --- */
 .ticker_item.msg-error {
-    background: rgba(239, 68, 68, 0.15);
+    background: rgba(239, 68, 68, 0.18);
     color: #b91c1c;
-    border: 1px solid rgba(239, 68, 68, 0.25);
+    border: 1px solid rgba(239, 68, 68, 0.32);
+}
+body[data-theme="dark"] .ticker_item.msg-error {
+    background: rgba(127, 29, 29, 0.56);
+    color: #fecaca;
+    border-color: rgba(248, 113, 113, 0.42);
 }
 .ticker_item.msg-warning {
-    background: rgba(245, 158, 11, 0.15);
+    background: rgba(245, 158, 11, 0.18);
     color: #b45309;
-    border: 1px solid rgba(245, 158, 11, 0.25);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+body[data-theme="dark"] .ticker_item.msg-warning {
+    background: rgba(120, 53, 15, 0.62);
+    color: #fde68a;
+    border-color: rgba(251, 191, 36, 0.46);
 }
 .ticker_item.msg-success {
-    background: rgba(16, 185, 129, 0.15);
+    background: rgba(16, 185, 129, 0.18);
     color: #047857;
-    border: 1px solid rgba(16, 185, 129, 0.25);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+body[data-theme="dark"] .ticker_item.msg-success {
+    background: rgba(6, 78, 59, 0.62);
+    color: #bbf7d0;
+    border-color: rgba(52, 211, 153, 0.4);
 }
 
 @keyframes scrollContinuous {
@@ -124,12 +238,12 @@ body {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.14em;
-    color: #3b82f6;
+    color: var(--accent);
 }
 
 h1 {
     text-align: left;
-    color: #0f172a;
+    color: var(--text);
     padding: 0;
     font-size: clamp(2rem, 3vw, 2.8rem);
     font-weight: 800;
@@ -141,11 +255,11 @@ h1 {
     display: flex;
     align-items: center;
     gap: 0.65rem;
-    background: rgba(255, 255, 255, 0.7);
-    border: 1px solid rgba(148, 163, 184, 0.25);
+    background: var(--chip-strong);
+    border: 1px solid var(--line);
     border-radius: 999px;
     padding: 0.5rem 0.8rem;
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+    box-shadow: 0 8px 18px var(--shadow);
 }
 
 .status-pill {
@@ -277,16 +391,18 @@ h1 {
 .central_block {
     display: flex;
     flex-direction: row;
-    gap: 1.5rem;
-    padding: 1.25rem 1.5rem 1.5rem;
-    background: rgba(255, 255, 255, 0.9);
+    gap: 1.4rem;
+    padding: 1.25rem 1.35rem 1.35rem;
+    background: linear-gradient(180deg, var(--panel) 0%, rgba(255,255,255,0.04) 100%);
     margin: 0 1rem 1rem;
-    border-radius: 20px;
-    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
-    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 24px;
+    box-shadow: 0 16px 40px var(--shadow);
+    border: 1px solid var(--line);
     flex: 1;
-    overflow: hidden;
     min-height: 0;
+    height: 100%;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
 }
 
 
@@ -297,6 +413,8 @@ h1 {
     flex-direction: column;
     gap: 1rem;
     overflow: hidden;
+    min-height: 0;
+    height: 100%;
 }
 
 /* Search Panel */
@@ -312,19 +430,21 @@ h1 {
 }
 .search-input {
     width: 100%;
-    padding: 0.75rem;
-    border: 2px solid #e5e7eb;
-    border-radius: 8px;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
     font-family: "Unbounded", sans-serif;
     font-size: 0.9rem;
     transition: all 0.2s ease;
+    background: var(--panel-soft);
+    color: var(--text);
 }
 
 .search-input:focus {
     outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    background-color: #f0f9ff;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+    background: var(--panel-strong);
 }
 
 .search-input::placeholder {
@@ -338,9 +458,9 @@ h1 {
 }
 
 .quick-filter-btn {
-    border: 1px solid rgba(148, 163, 184, 0.26);
-    background: #f8fafc;
-    color: #475569;
+    border: 1px solid var(--line);
+    background: var(--chip);
+    color: var(--text-2);
     border-radius: 999px;
     padding: 0.43rem 0.75rem;
     font-size: 0.72rem;
@@ -352,9 +472,9 @@ h1 {
 
 .quick-filter-btn:hover,
 .quick-filter-btn.active {
-    background: #dbeafe;
-    border-color: rgba(59, 130, 246, 0.38);
-    color: #1d4ed8;
+    background: var(--accent-soft);
+    border-color: rgba(96, 165, 250, 0.5);
+    color: var(--accent);
     box-shadow: 0 8px 18px rgba(59, 130, 246, 0.08);
 }
 
@@ -376,14 +496,14 @@ h1 {
 .status-filter {
     flex: 1;
     padding: 0.65rem;
-    border: 2px solid #e5e7eb;
+    border: 1px solid var(--line-strong);
     border-radius: 8px;
     font-family: "Unbounded", sans-serif;
     font-size: 0.9rem;
-    background-color: white;
+    background: var(--panel-soft);
     cursor: pointer;
     transition: all 0.2s ease;
-    color: #1f2937;
+    color: var(--text);
 }
 
 .status-filter:hover {
@@ -479,8 +599,9 @@ h1 {
 
 .airports_list {
     flex: 1;
+    min-height: 0;
+    height: 100%;
     overflow-y: auto;
-
     border-right: 1px solid #e5e7eb;
     padding-right: 1rem;
     list-style: none;
@@ -507,19 +628,19 @@ h1 {
     gap: 0.9rem;
     padding: 0.9rem 0.9rem 0.9rem 0.75rem;
     margin-bottom: 0.7rem;
-    background: linear-gradient(180deg, #ffffff, #f8fafc);
-    border-radius: 14px;
+    background: linear-gradient(180deg, var(--panel-strong), var(--panel-soft));
+    border-radius: 16px;
     cursor: pointer;
     transition: all 0.18s ease;
     border-left: 4px solid #cbd5e1;
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.03);
+    border: 1px solid var(--line);
+    box-shadow: 0 10px 22px var(--shadow);
 }
 
 .airport-item:hover {
-    background: #f8fbff;
+    background: linear-gradient(180deg, var(--panel-strong), var(--panel-muted));
     transform: translateX(3px);
-    box-shadow: 0 12px 20px rgba(59, 130, 246, 0.06);
+    box-shadow: 0 14px 24px rgba(59, 130, 246, 0.08);
 }
 
 .airport-item.status-open {
@@ -583,7 +704,7 @@ h1 {
 
 .airport-info strong {
     display: block;
-    color: #0f172a;
+    color: var(--text);
     font-weight: 700;
     font-size: 0.94rem;
     margin-bottom: 0.15rem;
@@ -760,7 +881,7 @@ h1 {
 
 .airport-popup strong {
     display: block;
-    color: #1f2937;
+    color: var(--text);
     margin-bottom: 6px;
     font-weight: 600;
 }
@@ -816,13 +937,13 @@ h1 {
 }
 
 .panel-tab:hover {
-    color: #3b82f6;
-    background-color: #f8fafc;
+    color: var(--accent);
+    background-color: var(--panel-soft);
 }
 
 .panel-tab.active {
-    color: #3b82f6;
-    border-bottom-color: #3b82f6;
+    color: var(--accent);
+    border-bottom-color: var(--accent);
 }
 
 /* Tab Content Visibility */
@@ -832,6 +953,8 @@ h1 {
     gap: 1rem;
     overflow: hidden;
     flex: 1;
+    min-height: 0;
+    height: 100%;
 }
 
 .tab_content.active {
@@ -856,6 +979,7 @@ h1 {
 /* KO list custom items */
 .ko_list {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     border-right: none;
     padding-right: 0.5rem;
@@ -879,15 +1003,17 @@ h1 {
     gap: 0.4rem;
     padding: 0.85rem;
     margin-bottom: 0.75rem;
-    background: #f9fafb;
-    border-radius: 8px;
+    background: linear-gradient(180deg, var(--panel-strong), var(--panel-soft));
+    border-radius: 14px;
     cursor: pointer;
     transition: all 0.2s ease;
     border-left: 4px solid #d1d5db;
+    border: 1px solid var(--line);
+    box-shadow: 0 10px 20px var(--shadow);
 }
 
 .ko-item:hover {
-    background: #f3f4f6;
+    background: linear-gradient(180deg, var(--panel-strong), var(--panel-muted));
     transform: translateX(4px);
 }
 
@@ -1073,24 +1199,25 @@ h1 {
 
 /* Сама плашка (прямоугольник с названием трассы) */
 .airway-label {
-    background-color: #ffffff;
-    border: 2px solid #3b82f6;
-    color: #1e3a8a;
+    background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(219,234,254,0.9));
+    border: 1px solid rgba(37, 99, 235, 0.55);
+    color: #1d4ed8;
     font-weight: 800;
     font-size: 10px;
-    padding: 2px 6px;
-    border-radius: 4px;
+    padding: 3px 7px;
+    border-radius: 999px;
     white-space: nowrap;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    pointer-events: none; /* Пропускает клики сквозь себя на линию */
+    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.18);
+    pointer-events: none;
     user-select: none;
     text-transform: uppercase;
 }
 
 /* Стиль для плашки DCT (красный пунктирный стиль) */
 .airway-label.dct-label {
-    border-color: #ef4444;
-    color: #ef4444;
+    background: linear-gradient(180deg, rgba(254,242,242,0.96), rgba(254,226,226,0.9));
+    border-color: rgba(239, 68, 68, 0.6);
+    color: #b91c1c;
 }
 
 /* ===== Bearing / Ruler tool styles ===== */
@@ -1100,7 +1227,12 @@ h1 {
     box-shadow: none;
     font-size: 12px;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--text);
+    opacity: 1;
+}
+
+body[data-theme="dark"] .bearing-marker-tooltip {
+    color: #e5eefb;
 }
 
 .bearing-arrow-icon {
@@ -1111,23 +1243,24 @@ h1 {
 /* Линия-релька на карте (можно анимировать) */
 .bearing-line {
     pointer-events: none;
+    filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.4));
 }
 
 /* Карточка сегмента в боковой панели */
 .route-leg-card {
-    background: #ffffff;
-    border-left: 4px solid #3b82f6;
-    padding: 12px;
+    background: linear-gradient(180deg, var(--panel-strong), var(--panel-soft));
+    border-left: 4px solid var(--accent);
+    padding: 12px 12px 10px;
     margin-bottom: 8px;
-    border-radius: 0 6px 6px 0;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border-radius: 14px;
+    box-shadow: 0 10px 18px var(--shadow);
     cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s ease;
 }
 
 .route-leg-card:hover {
     transform: translateX(4px);
-    box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 12px 22px var(--shadow-strong);
 }
 
 .route-leg-card.leg-dct {

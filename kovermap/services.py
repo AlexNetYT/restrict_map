@@ -1,19 +1,21 @@
+import json
 import logging
+import math
 import os
 import re
-import json
+import sqlite3
 import xml.etree.ElementTree as ET
+from collections import deque
 from datetime import timedelta
 
-from bs4 import BeautifulSoup
 import requests
+from bs4 import BeautifulSoup
 from django.conf import settings
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from kovermap.models import Airport, UpdateLog
 
-# Network/service defaults (production safety)
 DEFAULT_REQUEST_TIMEOUT_SECONDS = 10
 
 class AirportStatusManager:
@@ -98,12 +100,6 @@ class AirportStatusManager:
         if name_clean in self.city_index:
             return self.city_index[name_clean]['icao']
         return None
-
-
-# Import here to avoid circular imports
-import logging
-from django.utils import timezone
-from kovermap.models import Airport, UpdateLog
 
 logger = logging.getLogger(__name__)
 
@@ -381,10 +377,6 @@ class KORestrictionService:
         except Exception as e:
             logger.error(f"Error parsing KO XML content: {e}", exc_info=True)
             return []
-import sqlite3
-import math
-from collections import deque
-
 def get_all_point_candidates(cursor, ident):
     """Находит ВЕХ кандидатов с таким именем в Waypoints и Airports."""
     candidates = []
@@ -582,40 +574,6 @@ def parse_flight_plan(route_str: str, db_path):
         },
         "unrecognized": unrecognized
     }
-
-def update_airports_DB():
-    import requests
-    with open("airport_translate.json", "r", encoding="utf-8") as f:
-        translator = json.load(f)
-    resp = requests.get("https://raw.githubusercontent.com/vatsimnetwork/vatspy-data-project/refs/heads/master/VATSpy.dat")
-    if resp.status_code != 200:
-        exit
-    text = resp.text
-    airports = text.split("[Airports]")[1].split("[FIRs]")[0].strip().split("TXKF|L F Wade Intl|32.364042|-64.678703|BDA|KZNY|0")[1].split("UZDP|Kakaydy|37.62|67.518||UZSD|0 ; io")[0].splitlines()[1:]
-    # airports = airports
-    aps = []
-    for airport in airports:
-        info = airport.split("|")
-        airport_data = {"icao": info[0], "name": info[1], "lat": float(info[2]), "long": float(info[3]), "iata": info[4], "FIR": info[5]}
-        aps.append(airport_data)
-    Airport.objects.all().delete()
-    
-    for ap in aps:
-        if ap["FIR"] in ['UUWV', "ULLL", "URRV", "UWWW","USSV","UHHH","UHMM","UIII","UNNT","UACC","UHPP", "UNKL", "USTV", "UEEE"]:
-            if ap["icao"] in translator.keys():
-                ap["name"] = translator[ap["icao"]]
-                print(ap)
-            try:
-                Airport.objects.create(
-                    icao=ap["icao"],
-                    name=ap["name"],
-                    city=ap["FIR"],
-                    latitude=ap["lat"],
-                    longitude=ap["long"],
-                    status="OPEN"
-                )
-            except django.db.utils.IntegrityError:
-                print(ap)
 
 
 # =========================

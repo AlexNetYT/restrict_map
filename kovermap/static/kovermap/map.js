@@ -1,22 +1,48 @@
-// Initialize map
 const map = new L.Map("map").setView([60, 100], 4);
-let updateMarqueeAnimation = null;
+let currentTileLayer = null;
 
-// Add CartoDB tiles
-var CartoDB_Positron = new L.TileLayer(
-  "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-  {
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    subdomains: "abcd",
-    maxZoom: 20,
-  },
-);
-var LatLng_Map = new L.TileLayer(
-  'https://tiles.latlng.work/v1/tiles/{z}/{x}/{y}.png?key=pk_latlng_x0lzxypv4d25een4bnd6aw2sbzd571gk&style=light',
-  { attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors' }
-)
-LatLng_Map.addTo(map);
+function applyTheme(themeName) {
+  const nextTheme = themeName === "dark" ? "dark" : "light";
+  document.body.setAttribute("data-theme", nextTheme);
+  localStorage.setItem("kovermap-theme", nextTheme);
+
+  if (currentTileLayer) {
+    map.removeLayer(currentTileLayer);
+  }
+
+  currentTileLayer = new L.TileLayer(
+    nextTheme === "dark"
+      ? "https://tiles.latlng.work/v1/tiles/{z}/{x}/{y}.png?key=pk_latlng_x0lzxypv4d25een4bnd6aw2sbzd571gk&style=dark"
+      : "https://tiles.latlng.work/v1/tiles/{z}/{x}/{y}.png?key=pk_latlng_x0lzxypv4d25een4bnd6aw2sbzd571gk&style=light",
+    {}
+  );
+
+  currentTileLayer.addTo(map);
+
+  const toggle = document.getElementById("theme-toggle");
+  if (toggle) {
+    const icon = toggle.querySelector(".theme-toggle__icon");
+    if (icon) {
+      icon.textContent = nextTheme === "dark" ? "🌙" : "☀️";
+    }
+  }
+}
+
+function initializeThemeToggle() {
+  const savedTheme = localStorage.getItem("kovermap-theme");
+  const preferredDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  applyTheme(savedTheme || (preferredDark ? "dark" : "light"));
+
+  const toggle = document.getElementById("theme-toggle");
+  if (!toggle) return;
+
+  toggle.addEventListener("click", () => {
+    const current = document.body.getAttribute("data-theme") === "dark" ? "dark" : "light";
+    applyTheme(current === "dark" ? "light" : "dark");
+  });
+}
+
+initializeThemeToggle();
 
 // Airport Status colors
 const statusColors = {
@@ -354,8 +380,6 @@ function setupEventListeners() {
   setupMobileMapControls();
 
   const searchInput = document.getElementById("search-input");
-  // const statusFilter = document.getElementById("status-filter");
-  // const refreshBtn = document.getElementById("refresh-btn");
   const routeInput = document.getElementById("rte-input");
   const buildRouteBtn = document.getElementById("rte-btn");
   const quickButtons = document.querySelectorAll(".quick-filter-btn");
@@ -365,22 +389,13 @@ function setupEventListeners() {
     applyFilters();
   });
 
-  // statusFilter.addEventListener("change", (e) => {
-  //   currentStatusFilter = e.target.value;
-  //   syncQuickFilterButtons();
-  //   applyFilters();
-  // });
-
   quickButtons.forEach((button) => {
     button.addEventListener("click", () => {
       currentStatusFilter = button.dataset.status || "";
-      // statusFilter.value = currentStatusFilter;
       syncQuickFilterButtons();
       applyFilters();
     });
   });
-
-  // refreshBtn.addEventListener("click", refreshData);
   if (buildRouteBtn && routeInput) {
     buildRouteBtn.addEventListener("click", () => {
       loadRoute(routeInput.value.trim());
@@ -420,46 +435,6 @@ function setupEventListeners() {
   });
 }
 
-// Get CSRF token from meta tag
-function getCsrfToken() {
-  const token = document.querySelector('meta[name="csrf-token"]');
-  return token ? token.getAttribute('content') : '';
-}
-
-// Manual refresh
-// async function refreshData() {
-//   const btn = document.getElementById("refresh-btn");
-//   btn.classList.add("loading");
-//   btn.disabled = true;
-
-//   try {
-//     const response = await fetch("/api/airports/update/", {
-//       method: "POST",
-//       headers: {
-//         "X-CSRFToken": getCsrfToken(),
-//         "Content-Type": "application/json",
-//       },
-//     });
-
-//     const data = await response.json();
-
-//     if (data.success) {
-//       await loadAirports();
-//       await loadRestrictions();
-//       showNotification("✓ Данные успешно обновлены!", "success");
-//     } else {
-//       showNotification(`✗ Ошибка: ${data.message}`, "error");
-//     }
-//   } catch (error) {
-//     console.error("Error refreshing data:", error);
-//     showNotification("✗ Ошибка обновления", "error");
-//   } finally {
-//     btn.classList.remove("loading");
-//     btn.disabled = false;
-//   }
-// }
-
-// Show notification
 function showNotification(message, type = "info") {
   console.log(`[${type.toUpperCase()}] ${message}`);
 }
@@ -1088,8 +1063,8 @@ function computeHaversineKm(lat1, lon1, lat2, lon2) {
 const bearingState = {
   clickA: null,
   clickB: null,
+  previewB: null,
   lineLayer: null,
-  arrowLayer: null,
   markerALayer: null,
   markerBLayer: null,
 };
@@ -1098,14 +1073,15 @@ function ensureBearingDistanceOverlay() {
   let el = document.getElementById("bearing-distance-overlay");
   if (el) return;
 
-  // Создаём контейнер ВНУТРИ карты — всегда поверх тайлов
-  const mapEl = document.querySelector(".leaflet-control-zoom");
+  const mapContainer = document.querySelector(".map_module");
+  if (!mapContainer) return;
+
   const container = document.createElement("div");
   container.id = "bearing-distance-overlay";
   container.style.position = "absolute";
-  container.style.bottom = "60px";
+  container.style.bottom = "18px";
   container.style.left = "14px";
-  container.style.zIndex = "1200"; // выше зума
+  container.style.zIndex = "1200";
   container.style.background = "rgba(15, 23, 42, 0.88)";
   container.style.color = "#e2e8f0";
   container.style.padding = "10px 14px";
@@ -1113,29 +1089,36 @@ function ensureBearingDistanceOverlay() {
   container.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, Arial";
   container.style.fontSize = "13px";
   container.style.lineHeight = "1.5";
-  container.style.maxWidth = "280px";
+  container.style.maxWidth = "290px";
   container.style.backdropFilter = "blur(6px)";
   container.style.border = "1px solid rgba(148, 163, 184, 0.25)";
-  container.style.boxShadow = "0 4px 16px rgba(0,0,0,0.25)";
+  container.style.boxShadow = "0 6px 18px rgba(15, 23, 42, 0.28)";
   container.innerHTML = `
     <div style="font-weight:700;margin-bottom:6px;font-size:14px;color:#f8fafc;">📏 Курс / Дистанция</div>
     <div id="bd-click-a" style="margin-bottom:2px;">Клик A: —</div>
     <div id="bd-click-b" style="margin-bottom:6px;">Клик B: —</div>
     <div id="bd-bearing" style="margin-bottom:2px;">Курс (истинный север): —</div>
     <div id="bd-distance">Дистанция: —</div>
-    <div style="margin-top:8px;font-size:11px;opacity:0.7;">Перетащите линию по карте</div>
+    <div style="margin-top:8px;font-size:11px;opacity:0.7;">Кликните карту дважды для замера</div>
   `;
 
-  container.style.display = "none"; // скрыта до первого клика
-  document.body.appendChild(container);
+  container.style.display = "none";
+  mapContainer.style.position = "relative";
+  mapContainer.appendChild(container);
 }
 
-function clearBearingOverlays() {
+function clearBearingOverlays({ keepPreview = false } = {}) {
   const s = bearingState;
-  if (s.lineLayer)    { map.removeLayer(s.lineLayer);   s.lineLayer = null; }
-  if (s.arrowLayer)   { map.removeLayer(s.arrowLayer);    s.arrowLayer = null; }
+  if (s.lineLayer) { map.removeLayer(s.lineLayer); s.lineLayer = null; }
   if (s.markerALayer) { map.removeLayer(s.markerALayer); s.markerALayer = null; }
   if (s.markerBLayer) { map.removeLayer(s.markerBLayer); s.markerBLayer = null; }
+  if (!keepPreview) {
+    s.previewB = null;
+  }
+}
+
+function getBearingTargetPoint() {
+  return bearingState.clickB || bearingState.previewB || null;
 }
 
 function updateBearingDisplay() {
@@ -1144,54 +1127,65 @@ function updateBearingDisplay() {
   if (!el) return;
 
   const fmtCoord = (p) => `(${p.lat.toFixed(3)}, ${p.lon.toFixed(3)})`;
+  const endPoint = getBearingTargetPoint();
 
-  document.getElementById("bd-click-a").textContent   = `Клик A: ${s.clickA ? fmtCoord(s.clickA) : "—"}`;
-  document.getElementById("bd-click-b").textContent   = `Клик B: ${s.clickB ? fmtCoord(s.clickB) : "—"}`;
+  document.getElementById("bd-click-a").textContent = `Клик A: ${s.clickA ? fmtCoord(s.clickA) : "—"}`;
+  document.getElementById("bd-click-b").textContent = `Клик B: ${endPoint ? fmtCoord(endPoint) : "—"}`;
 
-  if (s.clickA && s.clickB) {
-    const brng = Math.round(computeTrueBearingDeg(s.clickA.lat, s.clickA.lon, s.clickB.lat, s.clickB.lon));
-    const dist = computeHaversineKm(s.clickA.lat, s.clickA.lon, s.clickB.lat, s.clickB.lon);
+  if (s.clickA && endPoint) {
+    const brng = Math.round(computeTrueBearingDeg(s.clickA.lat, s.clickA.lon, endPoint.lat, endPoint.lon));
+    const dist = computeHaversineKm(s.clickA.lat, s.clickA.lon, endPoint.lat, endPoint.lon);
 
-    document.getElementById("bd-bearing").textContent   = `Курс (истинный север): ${brng}°`;
-    // Показываем и км, и мили
+    document.getElementById("bd-bearing").textContent = `Курс (истинный север): ${brng}°`;
     const distMi = dist * 0.539957;
     const fmtDist = dist >= 10 ? `${dist.toFixed(1)} км` : `${(dist * 1000).toFixed(0)} м`;
-    document.getElementById("bd-distance").textContent   = `Дистанция: ${fmtDist} (${distMi.toFixed(1)} mi)`;
+    document.getElementById("bd-distance").textContent = `Дистанция: ${fmtDist} (${distMi.toFixed(1)} mi)`;
   } else {
-    document.getElementById("bd-bearing").textContent   = "Курс (истинный север): —";
-    document.getElementById("bd-distance").textContent   = "Дистанция: —";
+    document.getElementById("bd-bearing").textContent = "Курс (истинный север): —";
+    document.getElementById("bd-distance").textContent = "Дистанция: —";
   }
 }
 
 function drawBearingLine() {
   const s = bearingState;
-  clearBearingOverlays();
+  clearBearingOverlays({ keepPreview: true });
 
   if (!s.clickA) return;
 
-  // Маркер точки A (синий круг) — всегда показывается
   const markerStyle = (color) => ({
-    radius: 7, fillColor: color, color: "#fff", weight: 2, fillOpacity: 1,
+    radius: 7,
+    fillColor: color,
+    color: "#fff",
+    weight: 2,
+    fillOpacity: 1,
   });
 
   s.markerALayer = new L.CircleMarker([s.clickA.lat, s.clickA.lon], markerStyle("#3b82f6")).addTo(map);
-  s.markerALayer.bindTooltip("A", { permanent: true, direction: "top", className: "bearing-marker-tooltip", offset: [0, -8] });
+  s.markerALayer.bindTooltip("A", {
+    permanent: true,
+    direction: "top",
+    className: "bearing-marker-tooltip",
+    offset: [0, -8],
+  });
 
-  if (!s.clickB) return;
+  const endPoint = getBearingTargetPoint();
+  if (!endPoint) return;
 
-  // Маркер точки B (красный круг)
-  s.markerBLayer = new L.CircleMarker([s.clickB.lat, s.clickB.lon], markerStyle("#ef4444")).addTo(map);
-  s.markerBLayer.bindTooltip("B", { permanent: true, direction: "top", className: "bearing-marker-tooltip", offset: [0, -8] });
+  s.markerBLayer = new L.CircleMarker([endPoint.lat, endPoint.lon], markerStyle("#ef4444")).addTo(map);
+  s.markerBLayer.bindTooltip("B", {
+    permanent: true,
+    direction: "top",
+    className: "bearing-marker-tooltip",
+    offset: [0, -8],
+  });
 
-  // Основная линия-релька (пунктирная)
-  const latlngs = [
+  s.lineLayer = new L.Polyline([
     [s.clickA.lat, s.clickA.lon],
-    [s.clickB.lat, s.clickB.lon],
-  ];
-  s.lineLayer = new L.Polyline(latlngs, {
+    [endPoint.lat, endPoint.lon],
+  ], {
     color: "#f59e0b",
     weight: 3,
-    opacity: 0.9,
+    opacity: 0.95,
     dashArray: "10, 8",
     className: "bearing-line",
   }).addTo(map);
@@ -1301,28 +1295,44 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!bearingState.clickA) {
       bearingState.clickA = { lat, lon };
       bearingState.clickB = null;
-      clearBearingOverlays();
-      // Показываем панель при первом клике
+      bearingState.previewB = null;
       if (overlayEl) overlayEl.style.display = "block";
-    } else {
+    } else if (!bearingState.clickB) {
       bearingState.clickB = { lat, lon };
+      bearingState.previewB = null;
+    } else {
+      bearingState.clickA = { lat, lon };
+      bearingState.clickB = null;
+      bearingState.previewB = null;
     }
 
     drawBearingLine();
   });
 
-  // Перетаскивание точки B по карте
   map.on("mousemove", (e) => {
-    if (!bearingState.clickA || bearingState.clickB) return;
-    bearingState.clickB = { lat: e.latlng.lat, lon: e.latlng.lng };
+    if (!bearingState.clickA || bearingState.clickB) {
+      if (!bearingState.clickA) {
+        bearingState.previewB = null;
+      }
+      return;
+    }
+
+    bearingState.previewB = { lat: e.latlng.lat, lon: e.latlng.lng };
     drawBearingLine();
   });
 
-  // Сброс линейки по двойному клику / правой кнопке
+  map.on("mouseout", () => {
+    if (bearingState.clickA && !bearingState.clickB) {
+      bearingState.previewB = null;
+      drawBearingLine();
+    }
+  });
+
   map.on("contextmenu", () => {
     clearBearingOverlays();
     bearingState.clickA = null;
     bearingState.clickB = null;
+    bearingState.previewB = null;
     if (overlayEl) overlayEl.style.display = "none";
   });
 
