@@ -105,12 +105,35 @@ def airports_api(request):
     )
 
     for row in data:
+        official_status = row.get("status")
         possible_ivp = row["icao"] in ivp_icaos
         row["possible_ivp_restriction"] = possible_ivp
-        if possible_ivp:
-            # По требованию: если аэропорт попадает в зоны ИВП (circle),
-            # показываем его как "закрыт/ограничен" в ответе API.
+
+        if official_status == "CLOSED":
+            row["status"] = "CLOSED"
+            row["status_source"] = "official"
+            row["source_label"] = "Росавиация"
+            row["status_reason"] = "Закрытие аэропорта по данным Росавиации."
+            continue
+
+        if official_status == "RESTRICTED":
             row["status"] = "RESTRICTED"
+            row["status_source"] = "official"
+            row["source_label"] = "Росавиация"
+            row["status_reason"] = "Ограничения по данным Росавиации."
+            continue
+
+        if possible_ivp:
+            row["status"] = "RESTRICTED"
+            row["status_source"] = "ivp"
+            row["source_label"] = "Режим КО"
+            row["status_reason"] = "Ограничение по зоне ИВП; статус установлен по режиму КО."
+            continue
+
+        row["status"] = official_status or "OPEN"
+        row["status_source"] = "official" if official_status else "unknown"
+        row["source_label"] = "Росавиация" if official_status else "—"
+        row["status_reason"] = "Данные Росавиации." if official_status else "Данные отсутствуют."
 
     # Get last update timestamp
     last_update = UpdateLog.objects.filter(success=True).first()

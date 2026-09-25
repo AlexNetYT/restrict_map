@@ -58,6 +58,142 @@ const statusNames = {
   RESTRICTED: "Ограничения",
 };
 
+function getAirportStatusMeta(airport) {
+  const statusValue = airport && airport.status ? airport.status : "OPEN";
+  const sourceLabel = airport && airport.source_label
+    ? airport.source_label
+    : (airport && airport.status_source === "ivp" ? "ИВП" : "Росавиация");
+
+  const displayStatus = statusNames[statusValue] || statusValue;
+  const isIvPWarning = airport && airport.possible_ivp_restriction === true && statusValue === "OPEN";
+
+  return {
+    sourceLabel,
+    displayStatus,
+    ivpWarning: isIvPWarning
+      ? "Есть сигнал ИВП о возможных ограничениях в зоне аэропорта."
+      : "",
+  };
+}
+
+let selectedAirportIcao = null;
+let selectedKoId = null;
+
+function closeMobileDetailSheet() {
+  const sheet = document.getElementById("mobile-detail-sheet");
+  const backdrop = document.getElementById("mobile-detail-backdrop");
+
+  if (sheet) sheet.remove();
+  if (backdrop) backdrop.remove();
+}
+
+function openMobileDetailSheet(htmlContent) {
+  closeMobileDetailSheet();
+
+  const backdrop = document.createElement("div");
+  backdrop.id = "mobile-detail-backdrop";
+  backdrop.className = "mobile-detail-backdrop";
+
+  const sheet = document.createElement("div");
+  sheet.id = "mobile-detail-sheet";
+  sheet.className = "mobile-detail-sheet";
+  sheet.innerHTML = htmlContent;
+
+  document.body.appendChild(backdrop);
+  document.body.appendChild(sheet);
+
+  const closeButton = sheet.querySelector(".mobile-detail-close");
+  if (closeButton) {
+    closeButton.addEventListener("click", closeMobileDetailSheet);
+  }
+
+  backdrop.addEventListener("click", closeMobileDetailSheet);
+}
+
+function switchToTab(tabName) {
+  const tabMap = {
+    airports: document.getElementById("tab-airports"),
+    ko: document.getElementById("tab-ko"),
+    rte: document.getElementById("tab-rte"),
+  };
+
+  const contentMap = {
+    airports: document.getElementById("content-airports"),
+    ko: document.getElementById("content-ko"),
+    rte: document.getElementById("content-rte"),
+  };
+
+  const tab = tabMap[tabName];
+  const content = contentMap[tabName];
+
+  if (!tab || !content) return;
+
+  Object.entries(tabMap).forEach(([key, item]) => {
+    if (!item) return;
+    item.classList.toggle("active", key === tabName);
+  });
+
+  Object.entries(contentMap).forEach(([key, item]) => {
+    if (!item) return;
+    item.classList.toggle("active", key === tabName);
+  });
+}
+
+function renderAirportDetail(airport) {
+  const airportsList = document.querySelector(".airports_list");
+  if (!airportsList || !airport) return;
+
+  const meta = getAirportStatusMeta(airport);
+  const lastUpdated = formatRelativeTime(airport.last_updated, "—");
+  const warningHtml = meta.ivpWarning
+    ? `<div class="airport-detail-warning">⚠ ${meta.ivpWarning}</div>`
+    : "";
+
+  const detailHtml = `
+    <div class="airport-detail-panel">
+      <div class="detail-sheet-header">
+        <button type="button" class="airport-detail-back mobile-detail-close" aria-label="Вернуться к списку">← Назад</button>
+        <span class="airport-detail-source">${meta.sourceLabel}</span>
+      </div>
+      <div class="airport-detail-head">
+        <span class="status-badge status-${airport.status.toLowerCase()}">${meta.displayStatus}</span>
+      </div>
+      <h3 class="airport-detail-name">${airport.name}</h3>
+      <div class="airport-detail-grid">
+        <div><span>ICAO</span><strong>${airport.icao}</strong></div>
+        <div><span>FIR</span><strong>${airport.city}</strong></div>
+        <div><span>Статус</span><strong>${meta.displayStatus}</strong></div>
+        <div><span>Источник</span><strong>${meta.sourceLabel}</strong></div>
+      </div>
+      <div class="airport-detail-meta">
+        <span>Обновлено: ${lastUpdated}</span>
+      </div>
+      ${warningHtml}
+      <div class="airport-detail-note">
+        ${airport.status_reason || "Данные обновлены по текущей сводке."}
+      </div>
+    </div>
+  `;
+
+  if (isMobileViewport()) {
+    if (document.body.classList.contains("mobile-map-open") || window.innerWidth <= 768) {
+      toggleMobileMap(true);
+    }
+    openMobileDetailSheet(detailHtml);
+    return;
+  }
+
+  airportsList.innerHTML = detailHtml;
+
+  const backButton = airportsList.querySelector(".airport-detail-back");
+  if (backButton) {
+    backButton.addEventListener("click", () => {
+      selectedAirportIcao = null;
+      renderAirports(filteredAirports);
+    });
+  }
+}
+
 // Store markers, layer and airport data
 let markers = {};
 let airportsData = [];
@@ -747,13 +883,17 @@ function renderRouteCards(geojson) {
 }
 
 // Create a custom blinking dot marker for airports
-function createBlinkingMarker(lat, lon, status, possibleIvP = false) {
+function createBlinkingMarker(lat, lon, status, possibleIvP = false, isSelected = false) {
   const color = possibleIvP ? "#f97316" : (statusColors[status] || "#888888");
+  const ringColor = isSelected ? "#f8fafc" : "transparent";
+  const ringRadius = isSelected ? 12 : 10;
+  const strokeWidth = isSelected ? 3 : 0;
 
   const svgMarkup = `
-    <svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'>
-      <circle cx='12' cy='12' r='10' fill='${color}' opacity='0.7'/>
-      <circle cx='12' cy='12' r='6' fill='${color}'/>
+    <svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'>
+      <circle cx='14' cy='14' r='${ringRadius}' fill='none' stroke='${ringColor}' stroke-width='${strokeWidth}'/>
+      <circle cx='14' cy='14' r='10' fill='${color}' opacity='0.7'/>
+      <circle cx='14' cy='14' r='6' fill='${color}'/>
     </svg>`;
 
   const iconUrl =
@@ -761,8 +901,8 @@ function createBlinkingMarker(lat, lon, status, possibleIvP = false) {
 
   return new L.Icon({
     iconUrl: iconUrl,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
     popupAnchor: [0, -12],
   });
 }
@@ -801,38 +941,31 @@ function renderAirports(airports) {
 
   airports.forEach((airport) => {
     const possibleIvP = airport.possible_ivp_restriction === true;
+    const statusMeta = getAirportStatusMeta(airport);
+    const isSelected = selectedAirportIcao === airport.icao;
 
     const icon = createBlinkingMarker(
       airport.latitude,
       airport.longitude,
       airport.status,
       possibleIvP,
+      isSelected,
     );
-
-    const ivpLine = possibleIvP
-      ? `<br><span style="color:#f97316;font-weight:700;">Аэродром находится в пределах зон ИВП, возможны ограничения</span>`
-      : '';
 
     const marker = new L.Marker([airport.latitude, airport.longitude], {
       icon: icon,
-    })
-      .addTo(map)
-      .bindPopup(`
-				<div class="airport-popup">
-					<strong>${airport.name}</strong><br>
-					ICAO: ${airport.icao}<br>
-					FIR: ${airport.city}<br>
-					Статус: <span class="status-badge status-${airport.status.toLowerCase()}">
-						${statusNames[airport.status]}
-					</span>
-					${ivpLine}
-				</div>
-			`);
+      keyboard: false,
+    }).addTo(map);
+
+    marker.on("click", () => {
+      selectedAirportIcao = airport.icao;
+      renderAirportDetail(airport);
+    });
 
     markers[airport.icao] = marker;
 
     const li = document.createElement("li");
-    li.className = `airport-item status-${airport.status.toLowerCase()}`;
+    li.className = `airport-item status-${airport.status.toLowerCase()}${isSelected ? " selected" : ""}`;
 
     const blinkDot = document.createElement("span");
     blinkDot.className = `blink-dot status-${airport.status.toLowerCase()}`;
@@ -843,7 +976,8 @@ function renderAirports(airports) {
       <strong>${airport.name}</strong>
       <small>${airport.icao}</small>
       <div class="airport-meta">
-        <span class="airport-updated">Обновлено: ${formatRelativeTime(airport.last_updated, "—")}</span>
+        <span class="airport-updated">${statusMeta.displayStatus}</span>
+        <span class="airport-source">${statusMeta.sourceLabel}</span>
       </div>
     `;
 
@@ -851,8 +985,8 @@ function renderAirports(airports) {
     li.appendChild(airportInfo);
 
     li.addEventListener("click", () => {
-      marker.openPopup();
-      map.setView([airport.latitude, airport.longitude], 8);
+      selectedAirportIcao = airport.icao;
+      renderAirportDetail(airport);
     });
 
     airportsList.appendChild(li);
@@ -890,6 +1024,57 @@ function formatKoDate(isoString) {
 }
 
 // Render KO restrictions on map and in list
+function renderKoDetail(ko) {
+  const koList = document.querySelector(".ko_list");
+  if (!koList || !ko) return;
+
+  const statusText = ko.status === "active" ? "Активно" : "Предстоящее";
+  const categoryText = ko.category === "full_closure" ? "Полное закрытие" :
+    ko.category === "partial_closure" ? "Частичное закрытие" :
+    ko.category === "route" ? "Маршрут" : "КО";
+
+  const detailHtml = `
+    <div class="ko-detail-panel">
+      <div class="detail-sheet-header">
+        <button type="button" class="ko-detail-back mobile-detail-close" aria-label="Вернуться к списку">← Назад</button>
+        <span class="ko-detail-source">Режим КО</span>
+      </div>
+      <div class="ko-detail-head">
+        <span class="ko-badge ${ko.status === 'active' ? 'badge-active' : 'badge-upcoming'}">${statusText}</span>
+        <span class="ko-badge badge-route">${categoryText}</span>
+      </div>
+      <h3 class="ko-detail-name">${ko.rvmname || 'Ограничение'}</h3>
+      <div class="ko-detail-grid">
+        <div><span>FIR</span><strong>${(ko.firlist || []).join(', ') || '—'}</strong></div>
+        <div><span>Высоты</span><strong>${ko.levelfrom || '—'} — ${ko.levelto || '—'}</strong></div>
+        <div><span>Период</span><strong>${formatKoDate(ko.datefrom)} — ${formatKoDate(ko.dateto)}</strong></div>
+        <div><span>Источник</span><strong>Режим КО</strong></div>
+      </div>
+      <div class="ko-detail-desc">
+        ${ko.description || 'Описание отсутствует.'}
+      </div>
+    </div>
+  `;
+
+  if (isMobileViewport()) {
+    if (document.body.classList.contains("mobile-map-open") || window.innerWidth <= 768) {
+      toggleMobileMap(true);
+    }
+    openMobileDetailSheet(detailHtml);
+    return;
+  }
+
+  koList.innerHTML = detailHtml;
+
+  const backButton = koList.querySelector(".ko-detail-back");
+  if (backButton) {
+    backButton.addEventListener("click", () => {
+      selectedKoId = null;
+      renderRestrictions(filteredKo);
+    });
+  }
+}
+
 function renderRestrictions(restrictions) {
   const koList = document.querySelector(".ko_list");
   if (!koList) return;
@@ -908,8 +1093,11 @@ function renderRestrictions(restrictions) {
   restrictions.forEach((ko) => {
     ko._layers = [];
     const color = getKoColor(ko);
+    const isSelected = selectedKoId === ko.id;
+    const lineWeightBoost = isSelected ? 1.8 : 1;
+    const lineOpacity = isSelected ? 1 : 0.7;
+    const fillOpacity = isSelected ? 0.42 : 0.25;
     
-    // Popup content
     const popupContent = `
       <div class="ko-popup">
         <h3>${ko.rvmname || 'Ограничение'}</h3>
@@ -934,24 +1122,34 @@ function renderRestrictions(restrictions) {
           radius: zone.radius_km * 1000,
           color: color,
           fillColor: color,
-          fillOpacity: 0.25,
-          weight: 2
+          fillOpacity: fillOpacity,
+          opacity: lineOpacity,
+          weight: 2 * lineWeightBoost
         });
       } else if (zone.type === 'route') {
-        // Thick polyline for routes
         const pathLine = new L.Polyline(zone.coords, {
           color: color,
-          weight: 8,
-          opacity: 0.6
+          weight: 8 * lineWeightBoost,
+          opacity: lineOpacity
         });
         const centerLine = new L.Polyline(zone.coords, {
           color: '#ffffff',
-          weight: 2,
-          opacity: 0.8,
-        //   dashArray: '5, 5'
+          weight: 2 * lineWeightBoost,
+          opacity: 0.9,
         });
         
-        pathLine.bindPopup(popupContent).addTo(map);
+        pathLine.on("click", () => {
+          selectedKoId = ko.id;
+          switchToTab("ko");
+          renderKoDetail(ko);
+        });
+        centerLine.on("click", () => {
+          selectedKoId = ko.id;
+          switchToTab("ko");
+          renderKoDetail(ko);
+        });
+
+        pathLine.addTo(map);
         centerLine.addTo(map);
         
         koLayers.push(pathLine);
@@ -962,13 +1160,19 @@ function renderRestrictions(restrictions) {
         layer = new L.Polygon(zone.coords, {
           color: color,
           fillColor: color,
-          fillOpacity: 0.25,
-          weight: 2
+          fillOpacity: fillOpacity,
+          opacity: lineOpacity,
+          weight: 2 * lineWeightBoost
         });
       }
 
       if (layer) {
-        layer.bindPopup(popupContent).addTo(map);
+        layer.on("click", () => {
+          selectedKoId = ko.id;
+          switchToTab("ko");
+          renderKoDetail(ko);
+        });
+        layer.addTo(map);
         koLayers.push(layer);
         ko._layers.push(layer);
       }
@@ -976,9 +1180,8 @@ function renderRestrictions(restrictions) {
 
     // Add list item
     const li = document.createElement("li");
-    li.className = `ko-item cat-${ko.category} status-${ko.status}`;
+    li.className = `ko-item cat-${ko.category} status-${ko.status}${selectedKoId === ko.id ? " selected" : ""}`;
 
-    // Category badge display text
     let catText = 'КО';
     if (ko.category === 'full_closure') catText = 'Закрыто';
     else if (ko.category === 'partial_closure') catText = 'Частично';
@@ -996,6 +1199,9 @@ function renderRestrictions(restrictions) {
     `;
 
     li.addEventListener("click", () => {
+      selectedKoId = ko.id;
+      switchToTab("ko");
+      renderKoDetail(ko);
       focusOnRestriction(ko);
     });
 
@@ -1019,10 +1225,6 @@ function focusOnRestriction(ko) {
   if (allCoords.length > 0) {
     const bounds = new L.LatLngBounds(allCoords);
     map.fitBounds(bounds, { maxZoom: 10, padding: [50, 50] });
-
-    if (ko._layers && ko._layers.length > 0) {
-      ko._layers[0].openPopup();
-    }
   }
 }
 

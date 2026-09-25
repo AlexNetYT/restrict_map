@@ -643,6 +643,12 @@ h1 {
     box-shadow: 0 14px 24px rgba(59, 130, 246, 0.08);
 }
 
+.airport-item.selected {
+    border-color: rgba(59, 130, 246, 0.9);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18), 0 14px 24px rgba(59, 130, 246, 0.12);
+    transform: translateX(2px);
+}
+
 .airport-item.status-open {
     border-left-color: #22c55e;
 }
@@ -700,6 +706,177 @@ h1 {
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
+}
+
+.airport-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.2rem;
+}
+
+.airport-updated,
+.airport-source {
+    font-size: 0.7rem;
+    line-height: 1.25;
+    color: #64748b;
+}
+
+.airport-source {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.18rem 0.45rem;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.12);
+    color: #475569;
+    font-weight: 700;
+}
+
+.airport-detail-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    width: 100%;
+    background: linear-gradient(180deg, var(--panel-strong), var(--panel-soft));
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 1rem;
+    box-shadow: 0 14px 30px var(--shadow);
+}
+
+.airport-detail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.airport-detail-source {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.6rem;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.12);
+    color: var(--accent);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.airport-detail-name {
+    margin: 0;
+    font-size: 1.2rem;
+    color: var(--text);
+}
+
+.airport-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.airport-detail-grid div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.6rem 0.7rem;
+    border-radius: 12px;
+    background: rgba(148, 163, 184, 0.08);
+}
+
+.airport-detail-grid span {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #64748b;
+}
+
+.airport-detail-grid strong {
+    color: var(--text);
+    font-size: 0.9rem;
+}
+
+.airport-detail-meta,
+.airport-detail-note,
+.airport-detail-warning {
+    color: #475569;
+    font-size: 0.78rem;
+    line-height: 1.5;
+}
+
+.airport-detail-warning {
+    padding: 0.7rem 0.75rem;
+    background: rgba(249, 115, 22, 0.1);
+    border-left: 3px solid #f97316;
+    border-radius: 10px;
+    color: #9a4d00;
+}
+
+.airport-detail-note {
+    padding: 0.7rem 0.75rem;
+    background: rgba(59, 130, 246, 0.08);
+    border-radius: 10px;
+}
+
+.airport-detail-back {
+    align-self: flex-start;
+    border: none;
+    background: rgba(148, 163, 184, 0.12);
+    color: var(--text);
+    font-family: "Unbounded", sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.5rem 0.7rem;
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+.airport-detail-back:hover {
+    background: rgba(148, 163, 184, 0.2);
+}
+
+.detail-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.airport-detail-source,
+.ko-detail-source {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.28rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.12);
+    color: var(--accent);
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.mobile-detail-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.35);
+    backdrop-filter: blur(2px);
+    z-index: 2000;
+}
+
+.mobile-detail-sheet {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    z-index: 2001;
+    max-height: 76vh;
+    overflow-y: auto;
+    background: linear-gradient(180deg, var(--panel-strong), var(--panel-soft));
+    border: 1px solid var(--line);
+    border-radius: 18px 18px 12px 12px;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.24);
+    padding: 10px;
 }
 
 .airport-info strong {
@@ -824,6 +1001,27 @@ h1 {
 
     .airports_list .airport-item {
         padding: 0.85rem 0.75rem;
+    }
+
+    .airport-detail-panel,
+    .ko-detail-panel {
+        position: static;
+        max-height: none;
+        overflow: visible;
+    }
+
+    .airport-detail-grid,
+    .ko-detail-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .mobile-detail-sheet .airport-detail-panel,
+    .mobile-detail-sheet .ko-detail-panel {
+        margin: 0;
+        padding: 0.4rem;
+        box-shadow: none;
+        border: none;
+        background: transparent;
     }
 
     .mobile-map-toggle {
@@ -1017,6 +1215,12 @@ h1 {
     transform: translateX(4px);
 }
 
+.ko-item.selected {
+    border-color: rgba(59, 130, 246, 0.9);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18), 0 14px 24px rgba(59, 130, 246, 0.12);
+    transform: translateX(2px);
+}
+
 .ko-item.cat-full_closure {
     border-left-color: #f97316;
     /* Orange for closures */
@@ -1099,6 +1303,82 @@ h1 {
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     line-height: 1.25;
+}
+
+.ko-detail-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    width: 100%;
+    background: linear-gradient(180deg, var(--panel-strong), var(--panel-soft));
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 1rem;
+    box-shadow: 0 14px 30px var(--shadow);
+}
+
+.ko-detail-back {
+    align-self: flex-start;
+    border: none;
+    background: rgba(148, 163, 184, 0.12);
+    color: var(--text);
+    font-family: "Unbounded", sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.5rem 0.7rem;
+    border-radius: 999px;
+    cursor: pointer;
+}
+
+.ko-detail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.ko-detail-name {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--text);
+}
+
+.ko-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.ko-detail-grid div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.6rem 0.7rem;
+    border-radius: 12px;
+    background: rgba(148, 163, 184, 0.08);
+}
+
+.ko-detail-grid span {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #64748b;
+}
+
+.ko-detail-grid strong {
+    color: var(--text);
+    font-size: 0.83rem;
+    line-height: 1.4;
+}
+
+.ko-detail-desc {
+    padding: 0.7rem 0.75rem;
+    background: rgba(59, 130, 246, 0.08);
+    border-radius: 10px;
+    color: #475569;
+    font-size: 0.78rem;
+    line-height: 1.5;
 }
 
 /* KO Popup styling */
