@@ -929,14 +929,56 @@ h1 {
     }
 
     h1 {
-        font-size: 1.8rem;
-        padding: 1rem 0.75rem 0.75rem;
+        font-size: 1.75rem;
+        padding: 0.9rem 0.7rem 0.7rem;
+    }
+
+    .page_header {
+        padding: 0.5rem 0.75rem 0.2rem;
+    }
+
+    .header-meta {
+        font-size: 0.63rem;
+    }
+
+    .page_header {
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.6rem;
+    }
+
+    .page_header_text {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .page_header_actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-left: auto;
+        flex-shrink: 0;
+    }
+
+    .page_header_status {
+        flex-shrink: 1;
+        min-width: 0;
+        padding: 0.38rem 0.7rem;
+    }
+
+    .theme-toggle {
+        flex-shrink: 0;
+        width: 2.9rem;
+        min-width: 2.9rem;
+        height: 2.9rem;
+        min-height: 2.9rem;
     }
 
     .top_bar {
-        gap: 0.75rem;
-        padding: 0.75rem;
+        gap: 0.5rem;
+        padding: 0.6rem 0.75rem;
         overflow-x: auto;
+        flex-wrap: nowrap;
         scrollbar-width: none;
     }
 
@@ -945,24 +987,24 @@ h1 {
     }
 
     .topbar_card {
-        min-width: 160px;
-        padding: 0.9rem 0.8rem;
+        min-width: 120px;
+        padding: 0.75rem 0.7rem;
         flex: 0 0 auto;
     }
 
     .topbar_card h2 {
-        font-size: 0.7rem;
+        font-size: 0.62rem;
         text-transform: none;
         letter-spacing: 0;
     }
 
     .topbar_card p {
-        font-size: 1.4rem;
+        font-size: 1.15rem;
     }
 
     .central_block {
         display: block;
-        padding: 0 0.75rem 0.75rem;
+        padding: 0 0.6rem 0.6rem;
         margin: 0;
         background: transparent;
         box-shadow: none;
@@ -975,53 +1017,97 @@ h1 {
     }
 
     .panel_tabs {
-        margin: 0 0 0.75rem;
+        margin: 0 0 0.55rem;
+        gap: 0.25rem;
     }
 
     .panel-tab {
-        font-size: 0.72rem;
-        padding: 0.7rem 0.5rem;
+        font-size: 0.66rem;
+        padding: 0.62rem 0.4rem;
+    }
+
+    .search_panel {
+        gap: 0.45rem;
     }
 
     .search-input,
     .status-filter {
-        font-size: 0.8rem;
+        font-size: 0.76rem;
+        padding: 0.58rem 0.7rem;
+        min-height: 38px;
+    }
+
+    .quick_filter_row {
+        gap: 0.3rem;
+        margin-top: 0.05rem;
+    }
+
+    .quick-filter-btn {
+        padding: 0.35rem 0.5rem;
+        font-size: 0.62rem;
     }
 
     .airports_list,
     .ko_list {
-        max-height: none;
+        max-height: calc(100dvh - 260px);
+        min-height: 220px;
         border-right: none;
         padding-right: 0;
+        overscroll-behavior: contain;
     }
 
     .airports_list {
-        padding-bottom: 1rem;
+        padding-bottom: 0.5rem;
     }
 
-    .airports_list .airport-item {
-        padding: 0.85rem 0.75rem;
+    .airport-item,
+    .ko-item {
+        padding: 0.7rem 0.7rem;
+        margin-bottom: 0.5rem;
     }
 
-    .airport-detail-panel,
-    .ko-detail-panel {
-        position: static;
-        max-height: none;
-        overflow: visible;
+    .airport-item {
+        gap: 0.6rem;
     }
 
-    .airport-detail-grid,
-    .ko-detail-grid {
-        grid-template-columns: 1fr 1fr;
+    .airport-info strong {
+        font-size: 0.8rem;
     }
 
-    .mobile-detail-sheet .airport-detail-panel,
-    .mobile-detail-sheet .ko-detail-panel {
-        margin: 0;
-        padding: 0.4rem;
-        box-shadow: none;
-        border: none;
-        background: transparent;
+    .airport-info small {
+        font-size: 0.62rem;
+    }
+
+    .airport-meta {
+        gap: 0.3rem;
+    }
+
+    .airport-updated,
+    .airport-source {
+        font-size: 0.6rem;
+    }
+
+    .airport-source {
+        padding: 0.12rem 0.38rem;
+    }
+
+    .ko-header {
+        align-items: flex-start;
+        gap: 0.35rem;
+    }
+
+    .ko-title {
+        font-size: 0.76rem;
+    }
+
+    .ko-badge {
+        font-size: 0.58rem;
+        padding: 2px 5px;
+    }
+
+    .ko-time-range,
+    .ko-desc-snippet {
+        font-size: 0.66rem;
     }
 
     .mobile-map-toggle {
@@ -1068,6 +1154,44 @@ h1 {
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+
+    .airport-detail-panel,
+    .ko-detail-panel {
+        position: static;
+        max-height: none;
+        overflow: visible;
+        padding: 0.7rem;
+    }
+
+    .airport-detail-grid,
+    .ko-detail-grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+
+    .airport-detail-grid div,
+    .ko-detail-grid div {
+        padding: 0.5rem 0.55rem;
+    }
+
+    .airport-detail-name,
+    .ko-detail-name {
+        font-size: 1.05rem;
+    }
+
+    .airport-detail-note,
+    .ko-detail-desc,
+    .airport-detail-warning {
+        font-size: 0.72rem;
+    }
+
+    .mobile-detail-sheet {
+        left: 8px;
+        right: 8px;
+        bottom: 8px;
+        max-height: 60vh;
+        padding: 8px;
     }
 }
 

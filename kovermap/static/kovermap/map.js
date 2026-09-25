@@ -176,9 +176,6 @@ function renderAirportDetail(airport) {
   `;
 
   if (isMobileViewport()) {
-    if (document.body.classList.contains("mobile-map-open") || window.innerWidth <= 768) {
-      toggleMobileMap(true);
-    }
     openMobileDetailSheet(detailHtml);
     return;
   }
@@ -1057,9 +1054,6 @@ function renderKoDetail(ko) {
   `;
 
   if (isMobileViewport()) {
-    if (document.body.classList.contains("mobile-map-open") || window.innerWidth <= 768) {
-      toggleMobileMap(true);
-    }
     openMobileDetailSheet(detailHtml);
     return;
   }
